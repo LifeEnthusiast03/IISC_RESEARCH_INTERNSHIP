@@ -1,4 +1,4 @@
-# 🛡️ Real-Time Incident Tracking & Autonomous Threat Remediation
+# 🛡️ Real-Time Incident Tracking & Autonomous Threat Remediation(Detailed Note)
 
 > A two-stage deep learning pipeline for autonomous network intrusion detection and remediation using PyTorch Autoencoders and Deep Q-Networks.
 
