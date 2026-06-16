@@ -1,5 +1,4 @@
 # Documentation
-
 dailywork.md
 doubts.md
 
@@ -27,3 +26,58 @@ build/
 # Environment files
 .env
 .env.local
+
+# =============================================================
+# LARGE DATA FILES — do not push to GitHub
+# =============================================================
+
+# CICIDS2017 raw CSVs
+data/cicids2017/monday_benign.csv
+data/cicids2017/tuesday_benign.csv
+data/cicids2017/wednesday_benign.csv
+data/cicids2017/thursday_benign.csv
+data/cicids2017/friday_benign.csv
+data/cicids2017/botnet_ares.csv
+data/cicids2017/ddos_loit.csv
+data/cicids2017/dos_golden_eye.csv
+data/cicids2017/dos_hulk.csv
+data/cicids2017/dos_slowhttptest.csv
+data/cicids2017/dos_slowloris.csv
+data/cicids2017/ftp_patator.csv
+data/cicids2017/heartbleed.csv
+data/cicids2017/portscan.csv
+data/cicids2017/ssh_patator-new.csv
+data/cicids2017/ssh_patator_new.csv
+data/cicids2017/web_brute_force.csv
+data/cicids2017/web_sql_injection.csv
+data/cicids2017/web_xss.csv
+data/cicids2017/NetFlow-vs-CIC-flows-number.png
+
+# UNSW-NB15 raw CSVs
+data/unsw_nb15/UNSW-NB15_1.csv
+data/unsw_nb15/UNSW-NB15_2.csv
+data/unsw_nb15/UNSW-NB15_3.csv
+data/unsw_nb15/UNSW-NB15_4.csv
+data/unsw_nb15/NUSW-NB15_features.csv
+
+# Catch-all for any file placed in data/ (CSV, images, binaries, etc.)
+data/**/*.csv
+data/**/*.png
+data/**/*.jpg
+data/**/*.jpeg
+data/**/*.npy
+data/**/*.npz
+
+# Preprocessed NumPy arrays
+data/processed/X_train.npy
+data/processed/X_val.npy
+data/processed/X_attacks.npy
+data/processed/y_attacks.npy
+data/processed/*.npy
+
+# Trained model artefacts
+models/autoencoder.pt
+models/dqn_agent.pt
+models/scaler.pkl
+models/*.pt
+models/*.pkl

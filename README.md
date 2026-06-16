@@ -288,6 +288,319 @@ df.columns = features['Name'].tolist()
 
 ---
 
+### 📅 16 June 2026 — Data Preprocessing Pipeline for CICIDS2017
+
+**Topics covered:**
+- Why preprocessing is mandatory before training the autoencoder
+- All 7 preprocessing steps specific to CICIDS2017
+- Identified known data quality issues in the CICIDS2017 dataset
+
+**7 preprocessing steps defined and understood:**
+
+#### Step 1 — Load and combine all CSV files
+- Benign files (5 files) combined separately from attack files (13 files)
+- Benign data = autoencoder training set only
+- Attack data = evaluation only, never seen by autoencoder during training
+- Memory tip: use `low_memory=False` in `pd.read_csv()` for large files like dos_hulk.csv (268MB)
+
+#### Step 2 — Fix column names ⚠️ CICIDS-specific gotcha
+- All column names have invisible leading/trailing spaces baked into the CSV
+- `df['Label']` silently fails with KeyError because actual column name is `' Label'`
+- Fix: `df.columns = df.columns.str.strip()` — run immediately after loading
+- Also drop any unnamed index columns: `df.loc[:, ~df.columns.str.contains('^Unnamed')]`
+
+#### Step 3 — Remove infinity values and NaN
+- CICIDS2017 contains `inf` and `-inf` from CICFlowMeter division-by-zero bugs
+- Affected columns: `Flow Bytes/s`, `Flow Packets/s` (divide by zero when duration = 0)
+- `NaN` appears in std deviation features when a flow has only one packet
+- A single `inf` in a batch makes the entire loss `nan` — training dies immediately
+- Fix: `df.replace([np.inf, -np.inf], np.nan).dropna()`
+- Typically removes ~2,000–5,000 rows out of 1.3M — acceptable loss
+
+#### Step 4 — Remove duplicate rows
+- CICIDS2017 contains ~6% exact duplicate rows
+- Duplicates bias what the model thinks is "normal" (some patterns over-represented)
+- Fix: `df.drop_duplicates()` — run AFTER step 3, not before
+- Order matters: fix inf first, then deduplicate
+
+#### Step 5 — Fix data types
+- PyTorch requires `float32` — raw CICIDS data loads as `float64`
+- Using `float64` doubles GPU memory usage for no accuracy benefit
+- Fix: `df.drop(columns=['Label']).astype('float32')`
+- Verify no non-numeric columns remain in features (should only be Label)
+
+#### Step 6 — Normalize features to 0–1 range ⚠️ Most critical step
+- CICIDS features span wildly different ranges: Flow Duration (0–119,999,999) vs Header Length (0–43,772)
+- Without normalization, large-value features dominate; small features contribute nothing
+- Use MinMaxScaler — fit ONLY on training data, transform on val/test
+- **Data leakage rule:** never call `fit_transform()` on val or test data
+- Save fitted scaler: `pickle.dump(scaler, open("models/scaler.pkl", "wb"))`
+
+#### Step 7 — Split and save as .npy arrays
+- Final arrays saved to disk so preprocessing never needs to repeat
+- For autoencoder: input = target (X_train is both input and output label)
+- Sanity checks before saving:
+  - `np.isnan(X_train).any()` → must be `False`
+  - `np.isinf(X_train).any()` → must be `False`
+  - `X_train.min()` → `0.0`, `X_train.max()` → `1.0`
+
+**Complete preprocessing script (`training/preprocess.py`):**
+```python
+"""
+training/preprocess.py
+Run once before training. Produces:
+X_train.npy, X_val.npy, X_attacks.npy, y_attacks.npy, scaler.pkl
+"""
+import os, pickle
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing  import MinMaxScaler
+from sklearn.model_selection import train_test_split
+
+DATA_DIR  = "data/cicids2017/"
+OUT_DIR   = "data/processed/"
+MODEL_DIR = "models/"
+os.makedirs(OUT_DIR,   exist_ok=True)
+os.makedirs(MODEL_DIR, exist_ok=True)
+
+BENIGN_FILES = ["monday_benign.csv","tuesday_benign.csv",
+                "wednesday_benign.csv","thursday_benign.csv","friday_benign.csv"]
+ATTACK_FILES = ["botnet_ares.csv","ddos_loit.csv","dos_golden_eye.csv",
+                "dos_hulk.csv","dos_slowhttptest.csv","dos_slowloris.csv",
+                "ftp_patator.csv","heartbleed.csv","portscan.csv",
+                "ssh_patator_new.csv","web_brute_force.csv",
+                "web_sql_injection.csv","web_xss.csv"]
+
+print("[1/7] Loading CSV files...")
+df_b = pd.concat([pd.read_csv(DATA_DIR+f) for f in BENIGN_FILES],  ignore_index=True)
+df_a = pd.concat([pd.read_csv(DATA_DIR+f) for f in ATTACK_FILES], ignore_index=True)
+
+print("[2/7] Fixing column names...")
+df_b.columns = df_b.columns.str.strip()
+df_a.columns = df_a.columns.str.strip()
+df_b = df_b.loc[:, ~df_b.columns.str.contains('^Unnamed')]
+df_a = df_a.loc[:, ~df_a.columns.str.contains('^Unnamed')]
+
+print("[3/7] Removing inf and NaN...")
+df_b = df_b.replace([np.inf, -np.inf], np.nan).dropna()
+df_a = df_a.replace([np.inf, -np.inf], np.nan).dropna()
+
+print("[4/7] Removing duplicates...")
+df_b = df_b.drop_duplicates()
+df_a = df_a.drop_duplicates()
+
+print("[5/7] Separating features and converting to float32...")
+X_b = df_b.drop(columns=['Label']).astype('float32')
+X_a = df_a.drop(columns=['Label']).astype('float32')
+y_a = df_a['Label'].values
+
+print("[6/7] Normalizing with MinMaxScaler...")
+X_train, X_val = train_test_split(X_b, test_size=0.2, random_state=42)
+scaler  = MinMaxScaler()
+X_train = scaler.fit_transform(X_train).astype('float32')
+X_val   = scaler.transform(X_val).astype('float32')
+X_atk   = scaler.transform(X_a).astype('float32')
+with open(MODEL_DIR+"scaler.pkl","wb") as f: pickle.dump(scaler, f)
+
+print("[7/7] Saving arrays...")
+np.save(OUT_DIR+"X_train.npy",   X_train)
+np.save(OUT_DIR+"X_val.npy",     X_val)
+np.save(OUT_DIR+"X_attacks.npy", X_atk)
+np.save(OUT_DIR+"y_attacks.npy", y_a)
+
+print(f"\n✓ Done!")
+print(f"  X_train:   {X_train.shape}")   # (~971K, 78)
+print(f"  X_val:     {X_val.shape}")     # (~243K, 78)
+print(f"  X_attacks: {X_atk.shape}")     # (~1.4M, 78)
+print(f"  NaN check: {np.isnan(X_train).any()}")  # False
+print(f"  Inf check: {np.isinf(X_train).any()}")  # False
+print(f"  Range:     {X_train.min():.3f} – {X_train.max():.3f}")  # 0.0 – 1.0
+```
+
+---
+
+### 📅 16 June 2026 — Dataset Sufficiency Analysis
+
+**Question answered: Is 1.81 GB enough to train the autoencoder and DQN?**
+
+**Answer: Yes — more than enough.**
+
+**Key findings:**
+
+| Metric | Value |
+|---|---|
+| Total dataset size | 1.81 GB raw CSV |
+| Estimated total rows | ~2.8 million flows |
+| Benign rows (autoencoder training) | ~1.3 million |
+| Features per row | 78 |
+| Average size in published research | ~1.0 GB |
+| Minimum viable for autoencoder | ~50,000 benign rows |
+| You have | ~1.3 million benign rows (26× minimum) |
+
+**Model-specific analysis:**
+
+- **Autoencoder:** Extremely data-efficient. Trains only on ~1.3M benign rows. Even 50K would produce a working model. No concern whatsoever.
+- **DQN agent:** Does NOT train on the dataset directly. Trains in a simulated Gymnasium environment. Dataset only informs the simulation design. Dataset size is irrelevant for DQN training.
+
+**The one real concern — class imbalance within attacks:**
+- DoS Hulk: ~231,000 rows ✅ excellent
+- PortScan: ~159,000 rows ✅ excellent
+- DDoS: ~42,000 rows ✅ good
+- Web XSS: ~2,000 rows ⚠️ limited
+- Heartbleed: ~11 rows ❌ statistically meaningless
+
+> **Important note for project report:** Heartbleed performance metrics will not be statistically valid due to only ~11 available rows. This is a documented limitation of CICIDS2017 itself, not of the model. Must be mentioned explicitly in the evaluation section.
+
+**Training time estimates (with CUDA GPU):**
+- One epoch over 1M rows at batch_size=256: ~2–5 minutes
+- 50 epochs total: ~1.5–4 hours
+- Without GPU (CPU only): multiply by 10–20×
+
+**Memory usage after preprocessing:**
+- 1.3M rows × 78 features × 4 bytes (float32) = ~390 MB RAM
+- Fits comfortably in 8 GB RAM
+
+---
+
+### 📅 16 June 2026 — Backpropagation in Autoencoders
+
+**Question answered: Does the autoencoder use backpropagation for training?**
+
+**Answer: Yes — exactly the same as any neural network.**
+
+**The 4-step training loop (runs once per batch):**
+
+| Step | What happens | PyTorch call |
+|---|---|---|
+| 1. Forward pass | Input X flows through encoder → bottleneck → decoder → produces reconstruction X̂ | `x_hat = autoencoder(x)` |
+| 2. Compute loss | MSE between original and reconstruction: L = ‖X − X̂‖² | `loss = criterion(x_hat, x)` |
+| 3. Backward pass | PyTorch computes ∂L/∂w for every weight in every layer | `loss.backward()` |
+| 4. Weight update | Every weight nudged to reduce loss: w = w − lr × gradient | `optimizer.step()` |
+
+**Key difference from a classifier:**
+- Classifier: compares prediction vs external label
+- Autoencoder: compares reconstruction X̂ vs original input X — **the input IS the target**
+- No labels needed. `TensorDataset(X_tensor, X_tensor)` — same array for both input and target
+
+**What backpropagation does in the autoencoder specifically:**
+- Loss starts at the output (reconstruction error)
+- Gradients flow BACKWARDS: output → decoder → bottleneck → encoder → input
+- Every single weight in all 6 layers gets a gradient computed simultaneously
+- PyTorch's `autograd` engine does all of this automatically from one call: `loss.backward()`
+
+**Why this makes it an anomaly detector:**
+- After thousands of batches of BENIGN traffic, all weights adjust to reconstruct normal patterns very well → low loss
+- When an ATTACK flow arrives at inference, the weights have never optimized for it → high reconstruction error
+- That high error is the anomaly signal
+
+**Complete training loop code:**
+```python
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader, TensorDataset
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Wrap data — input and target are the SAME array
+X_tensor = torch.tensor(X_train_np).to(device)
+dataset  = TensorDataset(X_tensor, X_tensor)
+loader   = DataLoader(dataset, batch_size=256, shuffle=True)
+
+criterion = nn.MSELoss()
+optimizer = torch.optim.Adam(autoencoder.parameters(), lr=1e-3)
+
+autoencoder.train()
+for batch_X, batch_target in loader:
+
+    # Step 1: Forward pass
+    reconstructed = autoencoder(batch_X)
+
+    # Step 2: Compute loss
+    loss = criterion(reconstructed, batch_target)
+
+    # Step 3: Backpropagation
+    loss.backward()
+
+    # Step 4: Weight update + reset gradients
+    optimizer.step()
+    optimizer.zero_grad()
+```
+
+> **Critical reminder:** Always call `optimizer.zero_grad()` after `optimizer.step()`. If you forget, gradients accumulate across batches and produce completely wrong weight updates.
+
+---
+
+### 📅 16 June 2026 — Model Size Analysis
+
+**Question answered: How large will autoencoder.pt and dqn_agent.pt be after training?**
+
+**How model size is calculated:**
+- Every connection between neurons = 1 parameter (weight or bias)
+- Each parameter stored as `float32` = 4 bytes
+- File size = (total parameters × 4 bytes) + small PyTorch metadata overhead
+
+**Autoencoder parameter breakdown (78 → 64 → 32 → 16 → 32 → 64 → 78):**
+
+| Layer | Dimensions | Weights | Biases | Total Params |
+|---|---|---|---|---|
+| Encoder Layer 1 | 78 → 64 | 4,992 | 64 | 5,056 |
+| Encoder Layer 2 | 64 → 32 | 2,048 | 32 | 2,080 |
+| Bottleneck | 32 → 16 | 512 | 16 | 528 |
+| Decoder Layer 1 | 16 → 32 | 512 | 32 | 544 |
+| Decoder Layer 2 | 32 → 64 | 2,048 | 64 | 2,112 |
+| Output Layer | 64 → 78 | 4,992 | 78 | 5,070 |
+| **TOTAL** | — | **15,104** | **286** | **15,390** |
+
+**DQN agent parameter breakdown (78 → 128 → 64 → 5):**
+
+| Layer | Dimensions | Total Params |
+|---|---|---|
+| Hidden Layer 1 | 78 → 128 | 10,112 |
+| Hidden Layer 2 | 128 → 64 | 8,256 |
+| Output Layer | 64 → 5 | 325 |
+| **TOTAL** | — | **18,693** |
+
+**Complete model artefact sizes:**
+
+| File | Parameters | Estimated Size | Notes |
+|---|---|---|---|
+| autoencoder.pt | 15,390 | ~65–80 KB | Smaller than a JPEG image |
+| dqn_agent.pt | 18,693 | ~75–100 KB | Very lightweight |
+| scaler.pkl | 78 × 2 values | ~5 KB | min/max per feature |
+| threshold.json | 1 value | < 1 KB | e.g. `{"threshold": 0.045}` |
+| **Total artefacts** | — | **~165 KB** | Everything FastAPI loads at startup |
+
+**Key insight:** The entire production ML system — both models, the scaler, and the threshold — fits in ~165 KB total. FastAPI loads all of this in under 1 second at startup.
+
+**Comparison with other models:**
+- Your autoencoder: ~70 KB
+- ResNet-50 (image classifier): 98 MB (1,400× larger)
+- BERT Base (NLP): 440 MB (6,300× larger)
+- GPT-2 Small: 548 MB (7,800× larger)
+
+> Small model size is expected and correct for tabular data. 78 input features requires far fewer parameters than images (150,528 pixels) or text (vocabulary of 50,000 tokens).
+
+**How to verify size after training:**
+```python
+import torch, os
+
+torch.save(autoencoder.state_dict(), "models/autoencoder.pt")
+
+# Check file size
+size_bytes = os.path.getsize("models/autoencoder.pt")
+print(f"File size: {size_bytes / 1024:.1f} KB")
+
+# Count parameters
+total_params = sum(p.numel() for p in autoencoder.parameters())
+print(f"Total parameters: {total_params:,}")
+
+# Per-layer breakdown
+for name, param in autoencoder.named_parameters():
+    print(f"  {name:30s}  {str(param.shape):20s}  {param.numel():,} params")
+```
+
+---
+
 ## System Architecture
 
 ```
@@ -421,17 +734,22 @@ df.columns = features['Name'].tolist()
 project/
 ├── data/
 │   ├── cicids2017/          # raw CICIDS CSV files
-│   └── unsw_nb15/           # raw UNSW-NB15 CSV files
+│   ├── unsw_nb15/           # raw UNSW-NB15 CSV files
+│   └── processed/           # preprocessed .npy arrays (output of preprocess.py)
+│       ├── X_train.npy
+│       ├── X_val.npy
+│       ├── X_attacks.npy
+│       └── y_attacks.npy
 ├── notebooks/               # Jupyter notebooks for EDA
 ├── training/
-│   ├── preprocess.py        # data cleaning + normalization
+│   ├── preprocess.py        # data cleaning + normalization (run first)
 │   ├── train_autoencoder.py # Stage 1 training
 │   └── train_dqn.py         # Stage 2 training
-├── models/                  # saved artefacts
-│   ├── autoencoder.pt
-│   ├── dqn_agent.pt
-│   ├── scaler.pkl
-│   └── threshold.json
+├── models/                  # saved artefacts (output of training)
+│   ├── autoencoder.pt       # ~70 KB
+│   ├── dqn_agent.pt         # ~90 KB
+│   ├── scaler.pkl           # ~5 KB
+│   └── threshold.json       # <1 KB
 ├── backend/
 │   ├── main.py              # FastAPI app + WebSocket
 │   ├── inference.py         # model inference logic
@@ -463,13 +781,13 @@ cd incident-tracking-remediation
 # 2. Install Python dependencies
 pip install -r requirements.txt
 
-# 3. Run data preprocessing
+# 3. Run data preprocessing (produces .npy arrays + scaler.pkl)
 python training/preprocess.py
 
-# 4. Train the autoencoder
+# 4. Train the autoencoder (produces autoencoder.pt + threshold.json)
 python training/train_autoencoder.py
 
-# 5. Train the DQN agent
+# 5. Train the DQN agent (produces dqn_agent.pt)
 python training/train_dqn.py
 
 # 6. Start the backend
@@ -481,5 +799,5 @@ cd frontend && npm install && npm start
 
 ---
 
-*README last updated: 15 June 2026*
-*Next update due: 21 June 2026 (Data Readiness & Engineering milestone)*
+*README last updated: 16 June 2026*
+*Next update due: 21 June 2026 (Data Readiness & Engineering milestone completion)*
