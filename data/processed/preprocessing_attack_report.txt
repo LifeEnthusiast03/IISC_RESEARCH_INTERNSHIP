@@ -1,0 +1,49 @@
+=================================================================
+ATTACK DATA PREPROCESSING REPORT
+(Input for DQN Agent Training Environment — CICIDS2017 Attack Files)
+=================================================================
+
+Raw rows loaded      : 651,813
+After cleaning       : 600,141
+Rows removed (total) : 51,672
+Feature columns      : 115
+Total attack samples : 600,141
+
+ATTACK CLASS DISTRIBUTION (after cleaning):
+  DoS_Hulk                           :   297,642  (49.60%)
+  Port_Scan                          :   161,315  (26.88%)
+  DDoS_LOIT                          :    95,729  (15.95%)
+  FTP-Patator                        :     9,531  ( 1.59%)
+  DoS_GoldenEye                      :     8,363  ( 1.39%)
+  DoS_Slowhttptest                   :     6,856  ( 1.14%)
+  SSH-Patator                        :     5,949  ( 0.99%)
+  Botnet_ARES                        :     5,508  ( 0.92%)
+  DoS_Slowloris                      :     5,122  ( 0.85%)
+  Web_Brute_Force                    :     2,733  ( 0.46%)
+  Web_XSS                            :     1,357  ( 0.23%)
+  Web_SQL_Injection                  :        24  ( 0.00%)
+  Heartbleed                         :        12  ( 0.00%)
+
+PREPROCESSING STEPS APPLIED:
+  [STRIP]  Column name whitespace stripped
+  [SEP]    Label column extracted before feature processing
+  [DROP]   Identifier columns removed
+  [INF]    inf / -inf removed, NaN rows dropped
+  [DEDUP]  Exact duplicate rows removed
+  [CLIP]   Negative values clipped to 0
+  [FLOAT]  Features cast to float32
+  [ENC]    Attack type strings → integer labels (LabelEncoder)
+  [SCALE]  MinMaxScaler LOADED (not re-fitted) from preprocess_benign output
+
+OUTPUT FILES:
+  X_attacks.npy          — normalized attack features (float32)
+  y_attacks.npy          — integer-encoded attack type labels
+  y_attacks_str.npy      — original string attack type labels
+  attack_label_map.json  — {attack_name: integer_code} mapping
+  attack_class_counts.json — {attack_name: row_count}
+
+DQN USAGE:
+  The DQN environment samples rows from X_attacks as 'states'.
+  The agent selects response actions and receives rewards.
+  NOTE: DQN trains in simulation — attack data informs the environment design,
+        but DQN training itself uses the Gymnasium environment loop.

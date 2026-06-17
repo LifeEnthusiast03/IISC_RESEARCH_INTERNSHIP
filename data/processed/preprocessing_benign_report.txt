@@ -1,0 +1,40 @@
+=================================================================
+BENIGN DATA PREPROCESSING REPORT
+(Input for Autoencoder Training — CICIDS2017 Benign Files)
+=================================================================
+
+Raw rows loaded      : 1,786,239
+After inf/NaN drop   : 1,697,919  (approx; dedup follows)
+After dedup          : 1,697,919
+Rows removed (total) : 88,320
+Feature columns      : 115
+
+SPLIT SIZES:
+  Train : 1,188,543 rows  (70.0%)
+  Val   :   254,688 rows  (15.0%)
+  Test  :   254,688 rows  (15.0%)
+
+PREPROCESSING STEPS APPLIED:
+  [STRIP]  Column name whitespace stripped (CICIDS2017 gotcha)
+  [DROP]   Identifier columns removed (flow_id, timestamp, src/dst ip)
+  [DROP]   Unnamed index columns removed
+  [INF]    inf / -inf replaced with NaN, then rows dropped
+  [DEDUP]  Exact duplicate rows removed
+  [CLIP]   Negative values clipped to 0 in duration/count columns
+  [FLOAT]  All features cast to float32
+  [SCALE]  MinMaxScaler fit on train split only → [0, 1] range
+
+OUTPUT FILES:
+  X_train_benign.npy   — autoencoder training data
+  X_val_benign.npy     — autoencoder validation data
+  X_test_benign.npy    — autoencoder test data
+  scaler.pkl           — fitted MinMaxScaler (used by preprocess_attack.py)
+  feature_names.json   — ordered feature column list
+
+NEXT STEP:
+  Run preprocess_attack.py to process attack data for the DQN agent.
+  That script loads scaler.pkl from this output to normalize attack flows.
+
+AUTOENCODER TRAINING NOTE:
+  The autoencoder uses X as BOTH input and reconstruction target.
+  No y labels are needed. TensorDataset(X_tensor, X_tensor).

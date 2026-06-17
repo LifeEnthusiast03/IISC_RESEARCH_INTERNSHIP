@@ -31,15 +31,18 @@ build/
 # LARGE DATA FILES — do not push to GitHub
 # =============================================================
 
+# Allow .gitkeep placeholder files through in all data folders
+# (these are empty files that preserve folder structure in git)
+!data/**/.gitkeep
+!models/.gitkeep
+
 # CICIDS2017 — benign traffic CSVs (data/cicids2017/benign_data/)
 data/cicids2017/benign_data/*.csv
 data/cicids2017/benign_data/*.png
-data/cicids2017/benign_data/
 
 # CICIDS2017 — attack traffic CSVs (data/cicids2017/attack_data/)
 data/cicids2017/attack_data/*.csv
 data/cicids2017/attack_data/*.png
-data/cicids2017/attack_data/
 
 # CICIDS2017 — any leftover files at the top level of cicids2017/
 data/cicids2017/*.csv
@@ -47,7 +50,6 @@ data/cicids2017/*.png
 
 # UNSW-NB15 raw CSVs
 data/unsw_nb15/*.csv
-data/unsw_nb15/
 
 # Catch-all safety net — block ALL data file types anywhere under data/
 data/**/*.csv
@@ -61,7 +63,7 @@ data/**/*.pt
 data/**/*.h5
 data/**/*.parquet
 
-# Preprocessed NumPy arrays (data/processed/)
+# Preprocessed NumPy arrays and artefacts (data/processed/)
 data/processed/*.npy
 data/processed/*.pkl
 data/processed/*.json
