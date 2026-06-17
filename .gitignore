@@ -31,53 +31,42 @@ build/
 # LARGE DATA FILES — do not push to GitHub
 # =============================================================
 
-# CICIDS2017 raw CSVs
-data/cicids2017/monday_benign.csv
-data/cicids2017/tuesday_benign.csv
-data/cicids2017/wednesday_benign.csv
-data/cicids2017/thursday_benign.csv
-data/cicids2017/friday_benign.csv
-data/cicids2017/botnet_ares.csv
-data/cicids2017/ddos_loit.csv
-data/cicids2017/dos_golden_eye.csv
-data/cicids2017/dos_hulk.csv
-data/cicids2017/dos_slowhttptest.csv
-data/cicids2017/dos_slowloris.csv
-data/cicids2017/ftp_patator.csv
-data/cicids2017/heartbleed.csv
-data/cicids2017/portscan.csv
-data/cicids2017/ssh_patator-new.csv
-data/cicids2017/ssh_patator_new.csv
-data/cicids2017/web_brute_force.csv
-data/cicids2017/web_sql_injection.csv
-data/cicids2017/web_xss.csv
-data/cicids2017/NetFlow-vs-CIC-flows-number.png
+# CICIDS2017 — benign traffic CSVs (data/cicids2017/benign_data/)
+data/cicids2017/benign_data/*.csv
+data/cicids2017/benign_data/*.png
+data/cicids2017/benign_data/
+
+# CICIDS2017 — attack traffic CSVs (data/cicids2017/attack_data/)
+data/cicids2017/attack_data/*.csv
+data/cicids2017/attack_data/*.png
+data/cicids2017/attack_data/
+
+# CICIDS2017 — any leftover files at the top level of cicids2017/
+data/cicids2017/*.csv
+data/cicids2017/*.png
 
 # UNSW-NB15 raw CSVs
-data/unsw_nb15/UNSW-NB15_1.csv
-data/unsw_nb15/UNSW-NB15_2.csv
-data/unsw_nb15/UNSW-NB15_3.csv
-data/unsw_nb15/UNSW-NB15_4.csv
-data/unsw_nb15/NUSW-NB15_features.csv
+data/unsw_nb15/*.csv
+data/unsw_nb15/
 
-# Catch-all for any file placed in data/ (CSV, images, binaries, etc.)
+# Catch-all safety net — block ALL data file types anywhere under data/
 data/**/*.csv
 data/**/*.png
 data/**/*.jpg
 data/**/*.jpeg
 data/**/*.npy
 data/**/*.npz
+data/**/*.pkl
+data/**/*.pt
+data/**/*.h5
+data/**/*.parquet
 
-# Preprocessed NumPy arrays
-data/processed/X_train.npy
-data/processed/X_val.npy
-data/processed/X_attacks.npy
-data/processed/y_attacks.npy
+# Preprocessed NumPy arrays (data/processed/)
 data/processed/*.npy
+data/processed/*.pkl
+data/processed/*.json
 
-# Trained model artefacts
-models/autoencoder.pt
-models/dqn_agent.pt
-models/scaler.pkl
+# Trained model artefacts (models/)
 models/*.pt
 models/*.pkl
+models/*.h5
