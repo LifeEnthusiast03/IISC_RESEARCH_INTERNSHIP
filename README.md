@@ -288,6 +288,59 @@ df.columns = features['Name'].tolist()
 
 ---
 
+### 📅 17 June 2026 — Split Preprocessing Pipeline (Benign + Attack)
+
+**Topics covered:**
+- Why a single combined preprocessing script is wrong for a two-stage autoencoder + DQN architecture
+- How data leakage can silently happen if the MinMaxScaler is re-fitted on attack data
+- Designing two purpose-built scripts with a strict run-order dependency
+
+**Key decisions made:**
+
+#### Problem with the original `preprocess.py`
+The original script mixed benign and attack rows together, used `StandardScaler` (wrong for autoencoders), and produced a generic train/val/test split. This is incorrect for a two-model architecture where:
+- The **autoencoder** must train ONLY on benign traffic to learn what "normal" looks like
+- The **DQN agent** needs attack traffic to define the simulation environment states
+
+#### `preprocess_benign.py` — Autoencoder Training Data
+- Reads from `data/cicids2017/benign_data/` (5 files: monday → friday)
+- Applies full CICIDS2017 cleaning pipeline:
+  1. Strip column name whitespace (CICIDS2017-specific gotcha: `' Label'` ≠ `'Label'`)
+  2. Drop identifier columns (`flow_id`, `timestamp`, `src_ip`, `dst_ip`)
+  3. Replace `inf` / `-inf` → `NaN`, then drop NaN rows
+  4. Remove exact duplicate rows (run after NaN fix, not before)
+  5. Clip physics-impossible negatives to 0 (`active_*`, `packet_IAT_*`, etc.)
+- **Fits** `MinMaxScaler` on training split ONLY — the scaler never sees val/test/attack data
+- Splits 70% train | 15% val | 15% test (all benign — no stratification needed)
+- Saves `scaler.pkl` to both `data/processed/` and `models/`
+- Saves `feature_names.json` so the attack script aligns columns in the same order
+- **Outputs:** `X_train_benign.npy`, `X_val_benign.npy`, `X_test_benign.npy`
+
+#### `preprocess_attack.py` — DQN Agent Environment Data
+- Reads from `data/cicids2017/attack_data/` (13 attack files)
+- Applies the same cleaning steps as the benign pipeline
+- Extracts and preserves string labels (`'DoS Hulk'`, `'PortScan'`, etc.) before dropping
+- Encodes attack type strings → integers via `LabelEncoder`
+- **Loads** (never re-fits) `scaler.pkl` produced by `preprocess_benign.py`
+  - Re-fitting here would be data leakage: the scaler must only have seen benign training data
+  - Attack features can legitimately fall slightly outside `[0, 1]` after this transform — that is expected and correct
+- **Outputs:** `X_attacks.npy`, `y_attacks.npy`, `y_attacks_str.npy`, `attack_label_map.json`, `attack_class_counts.json`
+
+**Why MinMaxScaler (not StandardScaler)?**
+- The autoencoder uses `sigmoid` activation in the output layer → output spans `[0, 1]`
+- Input features must also be in `[0, 1]` for the reconstruction loss to be meaningful
+- `StandardScaler` produces z-scores (can be negative, unbounded) — wrong for this use case
+
+**Data leakage rule confirmed:**
+```
+SCALER FIT  → only X_train (benign)
+SCALER TRANSFORM → X_val, X_test, X_attacks (no fit, no leakage)
+```
+
+**`preprocess.py` removed** — superseded by the two split scripts above. Using a single combined script would have contaminated the autoencoder training set and used the wrong scaler type.
+
+---
+
 ### 📅 16 June 2026 — Data Preprocessing Pipeline for CICIDS2017
 
 **Topics covered:**
@@ -733,22 +786,30 @@ for name, param in autoencoder.named_parameters():
 ```
 project/
 ├── data/
-│   ├── cicids2017/          # raw CICIDS CSV files
-│   ├── unsw_nb15/           # raw UNSW-NB15 CSV files
-│   └── processed/           # preprocessed .npy arrays (output of preprocess.py)
-│       ├── X_train.npy
-│       ├── X_val.npy
-│       ├── X_attacks.npy
-│       └── y_attacks.npy
+│   ├── cicids2017/
+│   │   ├── benign_data/         # 5 benign CSVs (monday → friday)
+│   │   └── attack_data/         # 13 attack CSVs (dos_hulk, portscan, etc.)
+│   ├── unsw_nb15/               # raw UNSW-NB15 CSV files
+│   └── processed/               # output of preprocessing scripts
+│       ├── X_train_benign.npy   # autoencoder training input
+│       ├── X_val_benign.npy     # autoencoder validation input
+│       ├── X_test_benign.npy    # autoencoder test input
+│       ├── X_attacks.npy        # DQN environment states (attack flows)
+│       ├── y_attacks.npy        # integer-encoded attack type labels
+│       ├── y_attacks_str.npy    # string attack type labels
+│       ├── scaler.pkl           # fitted MinMaxScaler (also in models/)
+│       ├── feature_names.json   # ordered feature column list
+│       └── attack_label_map.json
 ├── notebooks/               # Jupyter notebooks for EDA
 ├── training/
-│   ├── preprocess.py        # data cleaning + normalization (run first)
+│   ├── preprocess_benign.py # Step 1 — benign data → autoencoder training data
+│   ├── preprocess_attack.py # Step 2 — attack data → DQN environment data
 │   ├── train_autoencoder.py # Stage 1 training
 │   └── train_dqn.py         # Stage 2 training
 ├── models/                  # saved artefacts (output of training)
 │   ├── autoencoder.pt       # ~70 KB
 │   ├── dqn_agent.pt         # ~90 KB
-│   ├── scaler.pkl           # ~5 KB
+│   ├── scaler.pkl           # ~5 KB  (copy from data/processed/)
 │   └── threshold.json       # <1 KB
 ├── backend/
 │   ├── main.py              # FastAPI app + WebSocket
@@ -781,13 +842,19 @@ cd incident-tracking-remediation
 # 2. Install Python dependencies
 pip install -r requirements.txt
 
-# 3. Run data preprocessing (produces .npy arrays + scaler.pkl)
-python training/preprocess.py
+# 3. Preprocess benign data (fits MinMaxScaler, produces autoencoder training arrays)
+#    Output: X_train/val/test_benign.npy, scaler.pkl, feature_names.json
+python training/preprocess_benign.py
 
-# 4. Train the autoencoder (produces autoencoder.pt + threshold.json)
+# 4. Preprocess attack data (loads scaler, produces DQN environment arrays)
+#    Output: X_attacks.npy, y_attacks.npy, attack_label_map.json
+#    NOTE: Must run AFTER preprocess_benign.py (depends on scaler.pkl)
+python training/preprocess_attack.py
+
+# 5. Train the autoencoder (produces autoencoder.pt + threshold.json)
 python training/train_autoencoder.py
 
-# 5. Train the DQN agent (produces dqn_agent.pt)
+# 6. Train the DQN agent (produces dqn_agent.pt)
 python training/train_dqn.py
 
 # 6. Start the backend
@@ -799,5 +866,5 @@ cd frontend && npm install && npm start
 
 ---
 
-*README last updated: 16 June 2026*
+*README last updated: 17 June 2026*
 *Next update due: 21 June 2026 (Data Readiness & Engineering milestone completion)*
