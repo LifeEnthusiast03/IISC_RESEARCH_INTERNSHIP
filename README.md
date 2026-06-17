@@ -286,60 +286,6 @@ df.columns = features['Name'].tolist()
 | Production Monitoring & Continuous Improvement | 22/07/2026 | 24/07/2026 |
 | Project Closure & Handover | 24/07/2026 | 25/07/2026 |
 
----
-
-### 📅 17 June 2026 — Split Preprocessing Pipeline (Benign + Attack)
-
-**Topics covered:**
-- Why a single combined preprocessing script is wrong for a two-stage autoencoder + DQN architecture
-- How data leakage can silently happen if the MinMaxScaler is re-fitted on attack data
-- Designing two purpose-built scripts with a strict run-order dependency
-
-**Key decisions made:**
-
-#### Problem with the original `preprocess.py`
-The original script mixed benign and attack rows together, used `StandardScaler` (wrong for autoencoders), and produced a generic train/val/test split. This is incorrect for a two-model architecture where:
-- The **autoencoder** must train ONLY on benign traffic to learn what "normal" looks like
-- The **DQN agent** needs attack traffic to define the simulation environment states
-
-#### `preprocess_benign.py` — Autoencoder Training Data
-- Reads from `data/cicids2017/benign_data/` (5 files: monday → friday)
-- Applies full CICIDS2017 cleaning pipeline:
-  1. Strip column name whitespace (CICIDS2017-specific gotcha: `' Label'` ≠ `'Label'`)
-  2. Drop identifier columns (`flow_id`, `timestamp`, `src_ip`, `dst_ip`)
-  3. Replace `inf` / `-inf` → `NaN`, then drop NaN rows
-  4. Remove exact duplicate rows (run after NaN fix, not before)
-  5. Clip physics-impossible negatives to 0 (`active_*`, `packet_IAT_*`, etc.)
-- **Fits** `MinMaxScaler` on training split ONLY — the scaler never sees val/test/attack data
-- Splits 70% train | 15% val | 15% test (all benign — no stratification needed)
-- Saves `scaler.pkl` to both `data/processed/` and `models/`
-- Saves `feature_names.json` so the attack script aligns columns in the same order
-- **Outputs:** `X_train_benign.npy`, `X_val_benign.npy`, `X_test_benign.npy`
-
-#### `preprocess_attack.py` — DQN Agent Environment Data
-- Reads from `data/cicids2017/attack_data/` (13 attack files)
-- Applies the same cleaning steps as the benign pipeline
-- Extracts and preserves string labels (`'DoS Hulk'`, `'PortScan'`, etc.) before dropping
-- Encodes attack type strings → integers via `LabelEncoder`
-- **Loads** (never re-fits) `scaler.pkl` produced by `preprocess_benign.py`
-  - Re-fitting here would be data leakage: the scaler must only have seen benign training data
-  - Attack features can legitimately fall slightly outside `[0, 1]` after this transform — that is expected and correct
-- **Outputs:** `X_attacks.npy`, `y_attacks.npy`, `y_attacks_str.npy`, `attack_label_map.json`, `attack_class_counts.json`
-
-**Why MinMaxScaler (not StandardScaler)?**
-- The autoencoder uses `sigmoid` activation in the output layer → output spans `[0, 1]`
-- Input features must also be in `[0, 1]` for the reconstruction loss to be meaningful
-- `StandardScaler` produces z-scores (can be negative, unbounded) — wrong for this use case
-
-**Data leakage rule confirmed:**
-```
-SCALER FIT  → only X_train (benign)
-SCALER TRANSFORM → X_val, X_test, X_attacks (no fit, no leakage)
-```
-
-**`preprocess.py` removed** — superseded by the two split scripts above. Using a single combined script would have contaminated the autoencoder training set and used the wrong scaler type.
-
----
 
 ### 📅 16 June 2026 — Data Preprocessing Pipeline for CICIDS2017
 
@@ -651,6 +597,59 @@ print(f"Total parameters: {total_params:,}")
 for name, param in autoencoder.named_parameters():
     print(f"  {name:30s}  {str(param.shape):20s}  {param.numel():,} params")
 ```
+
+---
+
+### 📅 17 June 2026 — Split Preprocessing Pipeline (Benign + Attack)
+
+**Topics covered:**
+- Why a single combined preprocessing script is wrong for a two-stage autoencoder + DQN architecture
+- How data leakage can silently happen if the MinMaxScaler is re-fitted on attack data
+- Designing two purpose-built scripts with a strict run-order dependency
+
+**Key decisions made:**
+
+#### Problem with the original `preprocess.py`
+The original script mixed benign and attack rows together, used `StandardScaler` (wrong for autoencoders), and produced a generic train/val/test split. This is incorrect for a two-model architecture where:
+- The **autoencoder** must train ONLY on benign traffic to learn what "normal" looks like
+- The **DQN agent** needs attack traffic to define the simulation environment states
+
+#### `preprocess_benign.py` — Autoencoder Training Data
+- Reads from `data/cicids2017/benign_data/` (5 files: monday → friday)
+- Applies full CICIDS2017 cleaning pipeline:
+  1. Strip column name whitespace (CICIDS2017-specific gotcha: `' Label'` ≠ `'Label'`)
+  2. Drop identifier columns (`flow_id`, `timestamp`, `src_ip`, `dst_ip`)
+  3. Replace `inf` / `-inf` → `NaN`, then drop NaN rows
+  4. Remove exact duplicate rows (run after NaN fix, not before)
+  5. Clip physics-impossible negatives to 0 (`active_*`, `packet_IAT_*`, etc.)
+- **Fits** `MinMaxScaler` on training split ONLY — the scaler never sees val/test/attack data
+- Splits 70% train | 15% val | 15% test (all benign — no stratification needed)
+- Saves `scaler.pkl` to both `data/processed/` and `models/`
+- Saves `feature_names.json` so the attack script aligns columns in the same order
+- **Outputs:** `X_train_benign.npy`, `X_val_benign.npy`, `X_test_benign.npy`
+
+#### `preprocess_attack.py` — DQN Agent Environment Data
+- Reads from `data/cicids2017/attack_data/` (13 attack files)
+- Applies the same cleaning steps as the benign pipeline
+- Extracts and preserves string labels (`'DoS Hulk'`, `'PortScan'`, etc.) before dropping
+- Encodes attack type strings → integers via `LabelEncoder`
+- **Loads** (never re-fits) `scaler.pkl` produced by `preprocess_benign.py`
+  - Re-fitting here would be data leakage: the scaler must only have seen benign training data
+  - Attack features can legitimately fall slightly outside `[0, 1]` after this transform — that is expected and correct
+- **Outputs:** `X_attacks.npy`, `y_attacks.npy`, `y_attacks_str.npy`, `attack_label_map.json`, `attack_class_counts.json`
+
+**Why MinMaxScaler (not StandardScaler)?**
+- The autoencoder uses `sigmoid` activation in the output layer → output spans `[0, 1]`
+- Input features must also be in `[0, 1]` for the reconstruction loss to be meaningful
+- `StandardScaler` produces z-scores (can be negative, unbounded) — wrong for this use case
+
+**Data leakage rule confirmed:**
+```
+SCALER FIT  → only X_train (benign)
+SCALER TRANSFORM → X_val, X_test, X_attacks (no fit, no leakage)
+```
+
+**`preprocess.py` removed** — superseded by the two split scripts above. Using a single combined script would have contaminated the autoencoder training set and used the wrong scaler type.
 
 ---
 
