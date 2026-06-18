@@ -29,15 +29,22 @@ Traditional cyber defense relies on human analysts who take hours to respond to 
 ### The Two-Stage Pipeline
 
 ```
-Live network flow
-       │
+Replay Simulator (CICIDS2017 CSV rows sent as live HTTP POST)
+       │  POST /predict  (raw 115-feature flow + metadata)
        ▼
 ┌─────────────────────┐
-│  Stage 1            │   Reconstruction error = ‖x − x̂‖²
+│  FastAPI Backend    │   Apply scaler.pkl → Autoencoder forward pass
+│  /predict endpoint  │   Reconstruction error = ‖x − x̂‖²
+└─────────┬───────────┘
+          │  error > threshold?
+          ├── NO  → Log benign, discard
+          ▼  YES
+┌─────────────────────┐
+│  Stage 1            │   Anomaly confirmed
 │  Autoencoder        │   Trained ONLY on benign traffic
 │  (Anomaly Detector) │   → High error = attack detected
 └─────────┬───────────┘
-          │  error > threshold?
+          │
           ▼
 ┌─────────────────────┐
 │  Stage 2            │   Selects from 5 actions:
@@ -46,7 +53,17 @@ Live network flow
 └─────────┬───────────┘
           │
           ▼
-   PostgreSQL + React Dashboard
+┌─────────────────────────────────────────────────────┐
+│  Dummy Action Executor                              │
+│  Simulated network state dict (IP → status)         │
+│  No real firewall/router — demo-safe                │
+└─────────┬───────────────────────────────────────────┘
+          │
+          ▼
+   PostgreSQL + WebSocket broadcast
+          │
+          ▼
+   React Dashboard (live alert feed + network status map)
 ```
 
 ---
@@ -778,6 +795,68 @@ Live data will be wired via `ws://localhost:8000/ws` WebSocket once the FastAPI 
 
 ---
 
+### 📅 18 June 2026 — Replay Simulator Design (Demo Infrastructure)
+
+**Topics covered:**
+- Designed the full architecture of the network log replay simulator
+- Defined the responsibility split between simulator, backend, and dashboard
+- Identified the `simulator/` module as a new top-level project component
+
+**The problem being solved:**
+The project does not have access to a live network tap or real router/firewall hardware (explicitly out of scope in the project charter: *"Integration with real firewall or router hardware"* and *"Real-time packet capture (PCAP)"* are excluded). The replay simulator bridges this gap for demonstration and validation purposes.
+
+**What the replay simulator does:**
+
+```
+Replay Simulator
+    │
+    │  1. Load a pool of rows from raw CICIDS2017 CSVs at startup
+    │     (mix of benign + attack, keeping src_ip/dst_ip/true_label locally)
+    │
+    │  2. Every N seconds (configurable), pick one row at random
+    │     and POST its 115 feature values (unscaled) to /predict
+    │
+    │  3. Print ground-truth vs prediction comparison locally
+    │     (running precision/recall sanity check during demo)
+    ▼
+FastAPI /predict
+```
+
+**Key design decisions:**
+
+| Decision | Rationale |
+|---|---|
+| Read from raw CSVs, not `.npy` | `.npy` files strip `src_ip`, `dst_ip`, true label — needed for display and sanity checking |
+| Send features **unscaled** | Scaling is backend's responsibility (matches architecture doc); simulator behaves like a real flow collector |
+| True label stays **client-side** | Never sent to backend — preserves fair evaluation; used for live precision/recall printing |
+| Sample a fixed pool at startup | Avoids re-reading 1.8 GB of CSVs per request; same cost as preprocessing |
+| `time.sleep(random 0.2–2s)` | Makes flow arrival feel live; configurable via `--rate` flag |
+| `--benign-ratio` flag | Controls attack frequency — lower for dramatic demo, higher for realistic baseline |
+
+**Dummy action executor (backend side):**
+- No real firewall or router calls
+- Maintains an in-memory `simulated_network_state` dict: `{ "192.168.1.45": { "status": "blocked", "action": "Block IP" } }`
+- When DQN selects an action, the backend updates this dict and broadcasts via WebSocket
+- Dashboard displays per-IP status badges live: 🟢 active / 🔴 blocked / 🟡 isolated / 🔵 monitored
+
+**5 remediation actions the DQN can select:**
+
+| Action | Simulated effect |
+|---|---|
+| Block IP | Source IP status → `blocked` |
+| Revoke credentials | Session status → `revoked` |
+| Isolate server | Destination status → `isolated` |
+| Kill process | Process status → `terminated` |
+| Monitor (no action) | No state change; incident logged only |
+
+**New `simulator/` module added to project structure:**
+- `simulator/replay_simulator.py` — main script (to be written next)
+- `simulator/README.md` — usage instructions (to be written next)
+
+**Status:** Folder scaffold created. Code to be written in the next session.
+
+---
+
 ## System Architecture
 
 ```
@@ -924,6 +1003,9 @@ project/
 │       ├── scaler.pkl           # fitted MinMaxScaler (also in models/)
 │       ├── feature_names.json   # ordered feature column list
 │       └── attack_label_map.json
+├── simulator/               # CICIDS2017 replay simulator (demo infrastructure)
+│   ├── replay_simulator.py  # streams CSV rows to /predict as if live traffic
+│   └── README.md            # usage: --rate, --benign-ratio, --host flags
 ├── notebooks/               # Jupyter notebooks for EDA
 ├── training/
 │   ├── preprocess_benign.py # Step 1 — benign data → autoencoder training data
@@ -939,14 +1021,19 @@ project/
 ├── backend/
 │   ├── main.py              # FastAPI app + WebSocket
 │   ├── inference.py         # model inference logic
+│   ├── action_executor.py   # dummy action executor (simulated network state)
 │   ├── database.py          # SQLAlchemy + PostgreSQL
 │   └── schemas.py           # Pydantic models
 ├── frontend/
-│   ├── src/
-│   │   ├── App.jsx
-│   │   ├── components/
-│   │   └── hooks/
-│   └── package.json
+│   └── incident-dashboard/  # Vite+React 19+TypeScript+Tailwind v4
+│       ├── src/
+│       │   ├── App.tsx          # ThreatSentinel dashboard UI
+│       │   ├── App.css          # component styles
+│       │   ├── index.css        # design system + Tailwind
+│       │   └── main.tsx         # React entry point
+│       ├── index.html
+│       ├── vite.config.ts
+│       └── package.json
 ├── docs/
 │   ├── architecture_document.docx
 │   └── project_charter.docx
@@ -965,7 +1052,7 @@ git clone https://github.com/yourusername/incident-tracking-remediation.git
 cd incident-tracking-remediation
 
 # 2. Install Python dependencies
-pip install -r requirements.txt
+pip install -r requirements.txt --index-url https://download.pytorch.org/whl/cu124
 
 # 3. Preprocess benign data (fits MinMaxScaler, produces autoencoder training arrays)
 #    Output: X_train/val/test_benign.npy, scaler.pkl, feature_names.json
@@ -982,14 +1069,19 @@ python training/train_autoencoder.py
 # 6. Train the DQN agent (produces dqn_agent.pt)
 python training/train_dqn.py
 
-# 6. Start the backend
+# 7. Start the backend
 uvicorn backend.main:app --reload
 
-# 7. Start the frontend
-cd frontend && npm install && npm start
+# 8. Start the frontend (from frontend/incident-dashboard/)
+cd frontend/incident-dashboard && npm install && npm run dev
+
+# 9. Run the replay simulator (streams CICIDS2017 flows to backend as live traffic)
+#    --rate: flows per second | --benign-ratio: fraction of benign rows (0.0–1.0)
+#    NOTE: backend must be running before starting the simulator
+python simulator/replay_simulator.py --rate 1 --benign-ratio 0.8
 ```
 
 ---
 
-*README last updated: 18 June 2026 (evening — frontend dashboard initiation)*
-*Next update due: 21 June 2026 (Data Readiness & Engineering milestone — autoencoder training run)*
+*README last updated: 18 June 2026 (evening — replay simulator design + folder scaffold)*
+*Next update due: When backend /predict and simulator code are written*
