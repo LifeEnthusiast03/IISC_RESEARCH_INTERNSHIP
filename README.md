@@ -718,6 +718,66 @@ threshold = float(np.percentile(errors, 95))
 
 ---
 
+### 📅 18 June 2026 — Frontend Dashboard Initiation (ThreatSentinel UI)
+
+**Topics covered:**
+- Scaffolded the React/TypeScript incident dashboard using Vite
+- Integrated Tailwind CSS v4 with the `@tailwindcss/vite` plugin
+- Built the initiation UI (`ThreatSentinel`) — a dark cybersecurity dashboard scaffold
+
+**Tech stack set up:**
+
+| Tool | Version | Role |
+|---|---|---|
+| React | 19.2.6 | UI framework |
+| TypeScript | 6.0.2 | Type safety |
+| Vite | 8.0.16 | Dev server + bundler |
+| Tailwind CSS | 4.3.1 | Utility-first styling |
+| `@tailwindcss/vite` | 4.3.1 | Tailwind v4 Vite plugin |
+
+**Project location:** `frontend/incident-dashboard/`
+
+**Tailwind v4 wiring (Vite plugin approach — no `tailwind.config.js` needed):**
+```typescript
+// vite.config.ts
+import tailwindcss from '@tailwindcss/vite'
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+})
+```
+```css
+/* index.css */
+@import "tailwindcss";
+```
+
+**Design system implemented (`index.css`):**
+- Dark cybersecurity colour palette: `--col-bg: #080b14`, `--col-cyan: #38bdf8`, `--col-red: #f87171`, `--col-green: #34d399`
+- Typography: Inter (body) + JetBrains Mono (terminal/code text) via Google Fonts
+- Animated CSS: grid background, ambient glow orbs, pulse ring, scan line, blink cursor
+
+**Dashboard components built (`App.tsx`):**
+
+| Component | Description |
+|---|---|
+| **Navbar** | Logo, model status pill (`MODEL NOT TRAINED`), nav links |
+| **Stat cards** | Flows Analysed, Threats Detected, Autoencoder Loss, Threshold |
+| **Pipeline tracker** | 5-stage progress list (Data Ingestion → Live Inference) with status dots |
+| **Live threat feed** | Tabular alert list + WebSocket connection status + “awaiting model” banner |
+| **Architecture breadcrumb** | Full inference pipeline visualised inline as styled tokens |
+| **Footer** | Stack versions, project attribution |
+
+**Boilerplate removed:**
+- Vite counter button, React/Vite logos, hero image
+- `App.css` scaffold styles (`.hero`, `.ticks`, `#next-steps`, `.counter`)
+- `index.css` Vite light/dark default theme
+
+**Status:** Dashboard serves as a placeholder scaffold. All data is mock/static.
+Live data will be wired via `ws://localhost:8000/ws` WebSocket once the FastAPI backend is implemented.
+
+**Dev server running at:** `http://localhost:5174/`
+
+---
+
 ## System Architecture
 
 ```
@@ -931,5 +991,5 @@ cd frontend && npm install && npm start
 
 ---
 
-*README last updated: 18 June 2026*
-*Next update due: 21 June 2026 (Data Readiness & Engineering milestone completion — autoencoder training run)*
+*README last updated: 18 June 2026 (evening — frontend dashboard initiation)*
+*Next update due: 21 June 2026 (Data Readiness & Engineering milestone — autoencoder training run)*
