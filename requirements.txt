@@ -1,1 +1,43 @@
+# ─────────────────────────────────────────────────────────────
+# requirements.txt — IISC Research Internship (IDS Pipeline)
+# Python : 3.13.x
+#
+# Standard install:
+#   pip install -r requirements.txt --index-url https://download.pytorch.org/whl/cu124
+#
+# Or install torch separately (recommended, it's 2.5 GB):
+#   pip install numpy pandas scikit-learn scipy joblib
+#   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+# ─────────────────────────────────────────────────────────────
 
+# ── Data processing ──────────────────────────────────────────
+numpy==2.4.6
+pandas==3.0.3
+python-dateutil==2.9.0.post0
+six==1.17.0
+tzdata==2026.2
+narwhals==2.22.1
+
+# ── Machine learning (preprocessing) ────────────────────────
+scikit-learn==1.9.0
+scipy==1.17.1
+joblib==1.5.3
+threadpoolctl==3.6.0
+
+# ── Deep learning (autoencoder + DQN) ───────────────────────
+# Requires: --index-url https://download.pytorch.org/whl/cu124
+torch==2.6.0+cu124
+torchvision==0.21.0+cu124
+torchaudio==2.6.0+cu124
+
+# ── PyTorch dependencies (auto-installed with torch) ─────────
+filelock==3.29.0
+typing_extensions==4.15.0
+networkx==3.6.1
+Jinja2==3.1.6
+MarkupSafe==3.0.3
+fsspec==2026.4.0
+setuptools==70.2.0
+sympy==1.13.1
+mpmath==1.3.0
+pillow==12.2.0
