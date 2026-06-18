@@ -72,3 +72,10 @@ data/processed/*.json
 models/*.pt
 models/*.pkl
 models/*.h5
+
+# =============================================================
+# LOCAL-ONLY TEST FOLDER — do not push to GitHub
+# =============================================================
+# tests/ is a local scratch space for quick model evaluation.
+# It contains no production code and should stay off the remote.
+tests/
