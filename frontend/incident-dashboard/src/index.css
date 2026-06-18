@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+/* ── Global design tokens ──────────────────────────────── */
+:root {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Brand palette */
+  --col-bg:        #080b14;
+  --col-surface:   #0d1117;
+  --col-border:    rgba(99, 179, 237, 0.12);
+  --col-cyan:      #38bdf8;
+  --col-cyan-dim:  rgba(56, 189, 248, 0.15);
+  --col-red:       #f87171;
+  --col-red-dim:   rgba(248, 113, 113, 0.15);
+  --col-green:     #34d399;
+  --col-green-dim: rgba(52, 211, 153, 0.12);
+  --col-amber:     #fbbf24;
+  --col-text:      #94a3b8;
+  --col-text-hi:   #e2e8f0;
+}
+
+/* ── Base reset ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--col-bg);
+  color: var(--col-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────── */
+::-webkit-scrollbar            { width: 6px; }
+::-webkit-scrollbar-track      { background: var(--col-surface); }
+::-webkit-scrollbar-thumb      { background: var(--col-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover{ background: rgba(56, 189, 248, 0.3); }
+
+/* ── Animated grid background ───────────────────────────── */
+.grid-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-image:
+    linear-gradient(rgba(56,189,248,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56,189,248,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
+/* ── Glow orbs ──────────────────────────────────────────── */
+.orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(120px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Pulse animation for live indicator ─────────────────── */
+@keyframes pulse-ring {
+  0%   { transform: scale(0.9); opacity: 1; }
+  70%  { transform: scale(1.4); opacity: 0; }
+  100% { transform: scale(0.9); opacity: 0; }
+}
+
+.pulse-ring {
+  animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+}
+
+/* ── Scan line animation ────────────────────────────────── */
+@keyframes scan {
+  0%   { top: 0%; }
+  100% { top: 100%; }
+}
+
+.scan-line {
+  animation: scan 3s linear infinite;
+}
+
+/* ── Number counter fade-up ─────────────────────────────── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-up {
+  animation: fade-up 0.6s ease forwards;
+}
+
+/* ── Blink cursor ───────────────────────────────────────── */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+.blink { animation: blink 1s step-end infinite; }

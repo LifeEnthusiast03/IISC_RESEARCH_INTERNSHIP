@@ -1,0 +1,85 @@
+/* App.css — component-level styles (non-Tailwind classes) */
+
+/* ── Stat card glow on hover ───────────────────────────── */
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at 50% 0%,
+    rgba(56, 189, 248, 0.06) 0%,
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 24px rgba(56, 189, 248, 0.1);
+}
+
+.stat-card:hover::before {
+  opacity: 1;
+}
+
+/* ── Alert severity badges ─────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.badge-critical {
+  background: var(--col-red-dim);
+  color: var(--col-red);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
+.badge-warning {
+  background: rgba(251, 191, 36, 0.12);
+  color: var(--col-amber);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.badge-info {
+  background: var(--col-cyan-dim);
+  color: var(--col-cyan);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.badge-safe {
+  background: var(--col-green-dim);
+  color: var(--col-green);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
+/* ── Glowing divider ───────────────────────────────────── */
+.glow-divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(56, 189, 248, 0.4),
+    transparent
+  );
+}
+
+/* ── Terminal-style mono text ──────────────────────────── */
+.mono {
+  font-family: var(--font-mono);
+}
