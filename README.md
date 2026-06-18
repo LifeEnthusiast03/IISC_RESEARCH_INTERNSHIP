@@ -538,46 +538,46 @@ for batch_X, batch_target in loader:
 - Each parameter stored as `float32` = 4 bytes
 - File size = (total parameters × 4 bytes) + small PyTorch metadata overhead
 
-**Autoencoder parameter breakdown (78 → 64 → 32 → 16 → 32 → 64 → 78):**
+**Autoencoder parameter breakdown (115 → 64 → 32 → 16 → 32 → 64 → 115):**
 
 | Layer | Dimensions | Weights | Biases | Total Params |
 |---|---|---|---|---|
-| Encoder Layer 1 | 78 → 64 | 4,992 | 64 | 5,056 |
+| Encoder Layer 1 | 115 → 64 | 7,360 | 64 | 7,424 |
 | Encoder Layer 2 | 64 → 32 | 2,048 | 32 | 2,080 |
 | Bottleneck | 32 → 16 | 512 | 16 | 528 |
 | Decoder Layer 1 | 16 → 32 | 512 | 32 | 544 |
 | Decoder Layer 2 | 32 → 64 | 2,048 | 64 | 2,112 |
-| Output Layer | 64 → 78 | 4,992 | 78 | 5,070 |
-| **TOTAL** | — | **15,104** | **286** | **15,390** |
+| Output Layer | 64 → 115 | 7,360 | 115 | 7,475 |
+| **TOTAL** | — | **19,840** | **323** | **20,163** |
 
-**DQN agent parameter breakdown (78 → 128 → 64 → 5):**
+**DQN agent parameter breakdown (115 → 128 → 64 → 5):**
 
 | Layer | Dimensions | Total Params |
 |---|---|---|
-| Hidden Layer 1 | 78 → 128 | 10,112 |
+| Hidden Layer 1 | 115 → 128 | 14,848 |
 | Hidden Layer 2 | 128 → 64 | 8,256 |
 | Output Layer | 64 → 5 | 325 |
-| **TOTAL** | — | **18,693** |
+| **TOTAL** | — | **23,429** |
 
 **Complete model artefact sizes:**
 
 | File | Parameters | Estimated Size | Notes |
 |---|---|---|---|
-| autoencoder.pt | 15,390 | ~65–80 KB | Smaller than a JPEG image |
-| dqn_agent.pt | 18,693 | ~75–100 KB | Very lightweight |
-| scaler.pkl | 78 × 2 values | ~5 KB | min/max per feature |
+| autoencoder.pt | 20,163 | ~85–100 KB | Smaller than a JPEG image |
+| dqn_agent.pt | 23,429 | ~95–115 KB | Very lightweight |
+| scaler.pkl | 115 × 2 values | ~7 KB | min/max per feature |
 | threshold.json | 1 value | < 1 KB | e.g. `{"threshold": 0.045}` |
-| **Total artefacts** | — | **~165 KB** | Everything FastAPI loads at startup |
+| **Total artefacts** | — | **~200 KB** | Everything FastAPI loads at startup |
 
 **Key insight:** The entire production ML system — both models, the scaler, and the threshold — fits in ~165 KB total. FastAPI loads all of this in under 1 second at startup.
 
 **Comparison with other models:**
-- Your autoencoder: ~70 KB
-- ResNet-50 (image classifier): 98 MB (1,400× larger)
-- BERT Base (NLP): 440 MB (6,300× larger)
-- GPT-2 Small: 548 MB (7,800× larger)
+- Your autoencoder: ~90 KB
+- ResNet-50 (image classifier): 98 MB (1,090× larger)
+- BERT Base (NLP): 440 MB (4,900× larger)
+- GPT-2 Small: 548 MB (6,100× larger)
 
-> Small model size is expected and correct for tabular data. 78 input features requires far fewer parameters than images (150,528 pixels) or text (vocabulary of 50,000 tokens).
+> Small model size is expected and correct for tabular data. 115 input features requires far fewer parameters than images (150,528 pixels) or text (vocabulary of 50,000 tokens).
 
 **How to verify size after training:**
 ```python
@@ -650,6 +650,71 @@ SCALER TRANSFORM → X_val, X_test, X_attacks (no fit, no leakage)
 ```
 
 **`preprocess.py` removed** — superseded by the two split scripts above. Using a single combined script would have contaminated the autoencoder training set and used the wrong scaler type.
+
+---
+
+### 📅 18 June 2026 — Autoencoder Training Script Implementation
+
+**Topics covered:**
+- Implemented the complete Stage 1 training pipeline (`training/train_autoencoder.py`)
+- Installed PyTorch 2.6.0+cu124 in the project virtual environment
+- Pinned all project dependencies in `requirements.txt`
+
+**`training/train_autoencoder.py` implemented:**
+
+#### Model Architecture — `Autoencoder` (nn.Module)
+
+| Component | Layers | Activation |
+|---|---|---|
+| Encoder | 115 → 64 → 32 → 16 | ReLU + Dropout(0.2) after each hidden layer |
+| Bottleneck | 16 dimensions | ReLU |
+| Decoder | 16 → 32 → 64 → 115 | ReLU (hidden), **Sigmoid** (output) |
+
+- Sigmoid output is mandatory: inputs are MinMax-scaled to `[0, 1]`, so the reconstruction target must also span `[0, 1]`
+- Dropout in encoder only; disabled automatically in `model.eval()` mode
+- Total trainable parameters: **20,163**
+
+#### Training Loop
+- **Loss:** `nn.MSELoss()`
+- **Optimizer:** `Adam(lr=1e-3, weight_decay=1e-5)`
+- **Batch size:** 256 | **Max epochs:** 50
+- `optimizer.zero_grad()` called **after** `optimizer.step()` (not before)
+- **Early stopping:** patience = 5 epochs on `val_loss`; best weights deep-copied and restored via `copy.deepcopy(model.state_dict())`
+- Train loss and val loss printed per epoch
+
+#### Post-training threshold computation
+```python
+# Per-sample MSE on val set (one scalar per row, not averaged)
+per_sample_mse = ((x_recon - x_batch) ** 2).mean(dim=1)
+
+# 95th-percentile → anomaly threshold
+threshold = float(np.percentile(errors, 95))
+```
+- A flow whose reconstruction error exceeds this threshold at inference is flagged as an anomaly
+
+#### Outputs saved to `models/`
+
+| File | Contents |
+|---|---|
+| `autoencoder.pt` | `state_dict` only (not the full model object) |
+| `threshold.json` | `{"threshold": <float>}` — 95th-percentile val MSE |
+| `training_history.json` | `{"train_loss": [...], "val_loss": [...]}` — one float per epoch |
+
+**Code style decisions:**
+- Path anchoring via `os.path.dirname(os.path.abspath(__file__))` → project root (matches `preprocess_benign.py`)
+- UTF-8-safe console + file logging (same handler setup as preprocessing scripts)
+- Step-numbered `[STEP N]` log lines throughout
+- `main()` entry point; all logic in named, docstring-annotated functions
+
+**Environment setup completed:**
+- Installed `torch==2.6.0+cu124`, `torchvision==0.21.0+cu124`, `torchaudio==2.6.0+cu124`
+- GPU confirmed: NVIDIA GeForce GTX 1650, driver 592.27, CUDA 12.x
+- All 24 packages pinned in `requirements.txt`
+
+**What remains for Stage 1:**
+- Run `python training/train_autoencoder.py` once preprocessing is complete
+- Verify `threshold.json` and `autoencoder.pt` are produced correctly
+- Plot `training_history.json` loss curves to confirm convergence
 
 ---
 
@@ -806,10 +871,11 @@ project/
 │   ├── train_autoencoder.py # Stage 1 training
 │   └── train_dqn.py         # Stage 2 training
 ├── models/                  # saved artefacts (output of training)
-│   ├── autoencoder.pt       # ~70 KB
-│   ├── dqn_agent.pt         # ~90 KB
-│   ├── scaler.pkl           # ~5 KB  (copy from data/processed/)
-│   └── threshold.json       # <1 KB
+│   ├── autoencoder.pt          # ~90 KB  (state_dict, 115-feature model)
+│   ├── dqn_agent.pt            # ~95 KB
+│   ├── scaler.pkl              # ~7 KB   (copy from data/processed/)
+│   ├── threshold.json          # <1 KB   (95th-percentile val MSE)
+│   └── training_history.json  # train/val loss per epoch
 ├── backend/
 │   ├── main.py              # FastAPI app + WebSocket
 │   ├── inference.py         # model inference logic
@@ -865,5 +931,5 @@ cd frontend && npm install && npm start
 
 ---
 
-*README last updated: 17 June 2026*
-*Next update due: 21 June 2026 (Data Readiness & Engineering milestone completion)*
+*README last updated: 18 June 2026*
+*Next update due: 21 June 2026 (Data Readiness & Engineering milestone completion — autoencoder training run)*
