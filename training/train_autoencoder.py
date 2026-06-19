@@ -15,11 +15,15 @@ INPUTS (data/processed/):
                          NOTE: val range may slightly exceed 1.0 on some features
                          (expected — scaler was fit on train data only; NOT a bug)
 
-MODEL ARCHITECTURE:
-  Encoder  : 115 → 64 → 32 → 16   (ReLU + Dropout(0.2))
-  Bottleneck: 16 dimensions
-  Decoder  : 16 → 32 → 64 → 115   (ReLU hidden; Sigmoid output)
+MODEL ARCHITECTURE (v2 — promoted from ablation, 24-dim bottleneck):
+  Encoder  : 115 → 80 → 48 → 24   (ReLU + Dropout(0.2) after first two layers;
+                                    ReLU after bottleneck layer)
+  Bottleneck: 24 dimensions
+  Decoder  : 24 → 48 → 80 → 115   (ReLU hidden; Sigmoid output)
   Output sigmoid is required because inputs are MinMax-scaled to [0, 1].
+  Wider bottleneck vs original 16-dim: motivated by per-feature error analysis
+  showing that FTP-Patator and Botnet_ARES have separating signal across 12–14
+  features that the 16-dim bottleneck was compressing away.
 
 TRAINING:
   - Loss      : MSELoss
@@ -104,16 +108,17 @@ log = logging.getLogger(__name__)
 class Autoencoder(nn.Module):
     """
     Fully-connected autoencoder for unsupervised anomaly detection on network flows.
+    Architecture v2 (24-dim bottleneck) — promoted from ablation on 19 June 2026.
 
     Architecture
     ------------
-    Encoder  : Linear(115→64) → ReLU → Dropout(0.2)
-               Linear(64→32)  → ReLU → Dropout(0.2)
-               Linear(32→16)  → ReLU          (bottleneck)
+    Encoder  : Linear(115→80) → ReLU → Dropout(0.2)
+               Linear(80→48)  → ReLU → Dropout(0.2)
+               Linear(48→24)  → ReLU          (bottleneck — 24 dims)
 
-    Decoder  : Linear(16→32)  → ReLU
-               Linear(32→64)  → ReLU
-               Linear(64→115) → Sigmoid       (output in [0, 1])
+    Decoder  : Linear(24→48)  → ReLU
+               Linear(48→80)  → ReLU
+               Linear(80→115) → Sigmoid       (output in [0, 1])
 
     The Sigmoid output is mandatory because inputs are MinMax-scaled to [0, 1].
     MSE between sigmoid output and the original input is a well-defined,
@@ -135,29 +140,29 @@ class Autoencoder(nn.Module):
 
         # ── Encoder ──────────────────────────────────────────
         self.encoder = nn.Sequential(
-            nn.Linear(input_dim, 64),
+            nn.Linear(input_dim, 80),
             nn.ReLU(),
             nn.Dropout(p=dropout_p),
-            nn.Linear(64, 32),
+            nn.Linear(80, 48),
             nn.ReLU(),
             nn.Dropout(p=dropout_p),
-            nn.Linear(32, 16),
+            nn.Linear(48, 24),
             nn.ReLU(),
         )
 
         # ── Decoder ──────────────────────────────────────────
         self.decoder = nn.Sequential(
-            nn.Linear(16, 32),
+            nn.Linear(24, 48),
             nn.ReLU(),
-            nn.Linear(32, 64),
+            nn.Linear(48, 80),
             nn.ReLU(),
-            nn.Linear(64, input_dim),
+            nn.Linear(80, input_dim),
             nn.Sigmoid(),    # clamps output to [0, 1] — matches MinMax-scaled inputs
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Forward pass: encode x to a 16-dim bottleneck, then decode back to
+        Forward pass: encode x to a 24-dim bottleneck, then decode back to
         input_dim dimensions.
 
         Parameters
@@ -508,7 +513,7 @@ def main():
     log.info("\n[STEP 3] Initialising Autoencoder...")
     model = Autoencoder(input_dim=INPUT_DIM, dropout_p=DROPOUT_P).to(device)
     total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    log.info(f"  Architecture : 115 → 64 → 32 → 16 → 32 → 64 → 115")
+    log.info(f"  Architecture : 115 → 80 → 48 → 24 → 48 → 80 → 115  (v2, 24-dim bottleneck)")
     log.info(f"  Trainable parameters : {total_params:,}")
     log.info(f"  Dropout (encoder)    : p={DROPOUT_P}")
 
