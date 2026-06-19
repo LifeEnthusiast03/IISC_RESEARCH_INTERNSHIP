@@ -1,0 +1,111 @@
+2026-06-19 16:35:35,923  INFO  =================================================================
+2026-06-19 16:35:35,923  INFO  AUTOENCODER TRAINING PIPELINE  (v2 — 24-dim bottleneck)
+2026-06-19 16:35:35,924  INFO  (Stage 1: Benign-only reconstruction → anomaly threshold)
+2026-06-19 16:35:35,924  INFO  =================================================================
+2026-06-19 16:35:35,924  INFO    Data   : E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed
+2026-06-19 16:35:35,924  INFO    Models : E:\IISC\IISC_RESEARCH_INTERNSHIP\models
+2026-06-19 16:35:35,924  INFO    Outputs: autoencoder_v2.pt, threshold_v2.json, training_history_v2.json
+2026-06-19 16:35:37,249  INFO    Device : cuda
+2026-06-19 16:35:37,258  INFO    GPU    : NVIDIA GeForce GTX 1650
+2026-06-19 16:35:37,258  INFO  
+[STEP 1] Loading preprocessed benign arrays...
+2026-06-19 16:35:37,258  INFO    Loading X_train_benign  from: E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\X_train_benign.npy
+2026-06-19 16:35:38,077  INFO    Loading X_val_benign    from: E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\X_val_benign.npy
+2026-06-19 16:35:38,224  INFO    X_train shape: (1188543, 115)  dtype: float32
+2026-06-19 16:35:38,225  INFO    X_val   shape: (254688, 115)  dtype: float32
+2026-06-19 16:35:38,313  INFO    X_train range: [0.0000, 1.0000]
+2026-06-19 16:35:38,326  INFO    X_val   range: [0.0000, 1.2000]  (may exceed 1.0 — expected)
+2026-06-19 16:35:38,326  INFO  
+[STEP 2] Building DataLoaders...
+2026-06-19 16:35:38,334  INFO    Train batches: 4643   Val batches: 995
+2026-06-19 16:35:38,334  INFO  
+[STEP 3] Initialising Autoencoder (v2)...
+2026-06-19 16:35:38,902  INFO    Architecture : 115 → 80 → 48 → 24 → 48 → 80 → 115
+2026-06-19 16:35:38,902  INFO    Bottleneck   : 24 dims  (v1 had 16 dims)
+2026-06-19 16:35:38,902  INFO    Trainable parameters : 28,779
+2026-06-19 16:35:38,902  INFO    Dropout (encoder)    : p=0.2
+2026-06-19 16:35:38,902  INFO  
+[STEP 4] Training autoencoder v2...
+2026-06-19 16:35:40,646  INFO  
+  Max epochs : 50  |  Early-stop patience : 5
+2026-06-19 16:35:40,646  INFO    Loss       : MSELoss
+2026-06-19 16:35:40,646  INFO    Optimizer  : Adam  lr=0.001  weight_decay=1e-05
+2026-06-19 16:35:40,646  INFO    Device     : cuda
+
+2026-06-19 16:36:18,033  INFO    Epoch [  1/50]  train_loss=0.005769  val_loss=0.001877  (37.4s)
+2026-06-19 16:36:18,035  INFO             ↳ New best val_loss=0.001877 — weights saved
+2026-06-19 16:36:54,995  INFO    Epoch [  2/50]  train_loss=0.001972  val_loss=0.001748  (37.0s)
+2026-06-19 16:36:54,997  INFO             ↳ New best val_loss=0.001748 — weights saved
+2026-06-19 16:37:32,757  INFO    Epoch [  3/50]  train_loss=0.001910  val_loss=0.001721  (37.8s)
+2026-06-19 16:37:32,759  INFO             ↳ New best val_loss=0.001721 — weights saved
+2026-06-19 16:38:09,962  INFO    Epoch [  4/50]  train_loss=0.001825  val_loss=0.000665  (37.2s)
+2026-06-19 16:38:09,964  INFO             ↳ New best val_loss=0.000665 — weights saved
+2026-06-19 16:38:44,399  INFO    Epoch [  5/50]  train_loss=0.000642  val_loss=0.000448  (34.4s)
+2026-06-19 16:38:44,400  INFO             ↳ New best val_loss=0.000448 — weights saved
+2026-06-19 16:39:17,098  INFO    Epoch [  6/50]  train_loss=0.000602  val_loss=0.000435  (32.7s)
+2026-06-19 16:39:17,100  INFO             ↳ New best val_loss=0.000435 — weights saved
+2026-06-19 16:39:54,475  INFO    Epoch [  7/50]  train_loss=0.000582  val_loss=0.000421  (37.4s)
+2026-06-19 16:39:54,478  INFO             ↳ New best val_loss=0.000421 — weights saved
+2026-06-19 16:40:29,731  INFO    Epoch [  8/50]  train_loss=0.000549  val_loss=0.000390  (35.3s)
+2026-06-19 16:40:29,734  INFO             ↳ New best val_loss=0.000390 — weights saved
+2026-06-19 16:41:01,312  INFO    Epoch [  9/50]  train_loss=0.000508  val_loss=0.000365  (31.6s)
+2026-06-19 16:41:01,314  INFO             ↳ New best val_loss=0.000365 — weights saved
+2026-06-19 16:41:37,278  INFO    Epoch [ 10/50]  train_loss=0.000456  val_loss=0.000278  (36.0s)
+2026-06-19 16:41:37,292  INFO             ↳ New best val_loss=0.000278 — weights saved
+2026-06-19 16:42:11,958  INFO    Epoch [ 11/50]  train_loss=0.000392  val_loss=0.000259  (34.7s)
+2026-06-19 16:42:11,961  INFO             ↳ New best val_loss=0.000259 — weights saved
+2026-06-19 16:42:48,096  INFO    Epoch [ 12/50]  train_loss=0.000381  val_loss=0.000256  (36.1s)
+2026-06-19 16:42:48,112  INFO             ↳ New best val_loss=0.000256 — weights saved
+2026-06-19 16:43:22,868  INFO    Epoch [ 13/50]  train_loss=0.000377  val_loss=0.000255  (34.8s)
+2026-06-19 16:43:22,881  INFO             ↳ New best val_loss=0.000255 — weights saved
+2026-06-19 16:43:58,623  INFO    Epoch [ 14/50]  train_loss=0.000373  val_loss=0.000260  (35.7s)
+2026-06-19 16:43:58,624  INFO             ↳ No improvement (1/5)
+2026-06-19 16:44:33,944  INFO    Epoch [ 15/50]  train_loss=0.000371  val_loss=0.000257  (35.3s)
+2026-06-19 16:44:33,944  INFO             ↳ No improvement (2/5)
+2026-06-19 16:45:11,296  INFO    Epoch [ 16/50]  train_loss=0.000370  val_loss=0.000252  (37.4s)
+2026-06-19 16:45:11,298  INFO             ↳ New best val_loss=0.000252 — weights saved
+2026-06-19 16:45:48,108  INFO    Epoch [ 17/50]  train_loss=0.000367  val_loss=0.000254  (36.8s)
+2026-06-19 16:45:48,108  INFO             ↳ No improvement (1/5)
+2026-06-19 16:46:26,290  INFO    Epoch [ 18/50]  train_loss=0.000366  val_loss=0.000255  (38.2s)
+2026-06-19 16:46:26,291  INFO             ↳ No improvement (2/5)
+2026-06-19 16:47:05,826  INFO    Epoch [ 19/50]  train_loss=0.000365  val_loss=0.000250  (39.5s)
+2026-06-19 16:47:05,828  INFO             ↳ New best val_loss=0.000250 — weights saved
+2026-06-19 16:47:43,852  INFO    Epoch [ 20/50]  train_loss=0.000365  val_loss=0.000248  (38.0s)
+2026-06-19 16:47:43,854  INFO             ↳ New best val_loss=0.000248 — weights saved
+2026-06-19 16:48:20,672  INFO    Epoch [ 21/50]  train_loss=0.000364  val_loss=0.000247  (36.8s)
+2026-06-19 16:48:20,675  INFO             ↳ New best val_loss=0.000247 — weights saved
+2026-06-19 16:48:58,504  INFO    Epoch [ 22/50]  train_loss=0.000364  val_loss=0.000251  (37.8s)
+2026-06-19 16:48:58,504  INFO             ↳ No improvement (1/5)
+2026-06-19 16:49:35,575  INFO    Epoch [ 23/50]  train_loss=0.000363  val_loss=0.000255  (37.1s)
+2026-06-19 16:49:35,575  INFO             ↳ No improvement (2/5)
+2026-06-19 16:50:07,249  INFO    Epoch [ 24/50]  train_loss=0.000363  val_loss=0.000250  (31.7s)
+2026-06-19 16:50:07,249  INFO             ↳ No improvement (3/5)
+2026-06-19 16:50:39,731  INFO    Epoch [ 25/50]  train_loss=0.000363  val_loss=0.000252  (32.5s)
+2026-06-19 16:50:39,732  INFO             ↳ No improvement (4/5)
+2026-06-19 16:51:16,090  INFO    Epoch [ 26/50]  train_loss=0.000362  val_loss=0.000248  (36.4s)
+2026-06-19 16:51:16,090  INFO             ↳ No improvement (5/5)
+2026-06-19 16:51:16,090  INFO  
+  ⏹  Early stopping triggered at epoch 26. Best val_loss=0.000247
+2026-06-19 16:51:16,154  INFO  
+  ✅  Best weights restored (val_loss=0.000247)
+2026-06-19 16:51:16,197  INFO  
+[STEP 5] Computing per-sample reconstruction errors on val set...
+2026-06-19 16:51:19,367  INFO    Reconstruction errors  shape : (254688,)
+2026-06-19 16:51:19,371  INFO    Reconstruction errors  min   : 0.000005
+2026-06-19 16:51:19,379  INFO    Reconstruction errors  mean  : 0.000247
+2026-06-19 16:51:19,379  INFO    Reconstruction errors  max   : 0.151909
+2026-06-19 16:51:19,394  INFO  
+[STEP 6] Saving v2 model, threshold, and training history...
+2026-06-19 16:51:19,589  INFO    Threshold (95th percentile): 0.000914  →  E:\IISC\IISC_RESEARCH_INTERNSHIP\models\threshold_v2.json
+2026-06-19 16:51:19,613  INFO    Model state_dict saved             →  E:\IISC\IISC_RESEARCH_INTERNSHIP\models\autoencoder_v2.pt
+2026-06-19 16:51:19,614  INFO    Training history saved             →  E:\IISC\IISC_RESEARCH_INTERNSHIP\models\training_history_v2.json
+2026-06-19 16:51:19,614  INFO  
+=================================================================
+2026-06-19 16:51:19,614  INFO  ✅  Autoencoder v2 training complete!
+2026-06-19 16:51:19,615  INFO      Epochs trained         : 26
+2026-06-19 16:51:19,615  INFO      Final train_loss       : 0.000362
+2026-06-19 16:51:19,615  INFO      Final val_loss         : 0.000248
+2026-06-19 16:51:19,618  INFO      Anomaly threshold (p95) : 0.000914
+2026-06-19 16:51:19,618  INFO  
+    → Now run: python training/compare_models.py
+2026-06-19 16:51:19,618  INFO  =================================================================
