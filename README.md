@@ -857,6 +857,36 @@ FastAPI /predict
 
 ---
 
+### 📅 19 June 2026 — End-to-End Autoencoder Evaluation & Hybrid Architecture Decision
+
+**Context:** Evaluated the original Autoencoder (v1) and identified a hard ceiling for specific attack types, motivating an ablation study on bottleneck capacity and a pivot towards a multi-stage hybrid classifier approach. *(Note: This work falls under early Model Prototyping work pulled forward).*
+
+**Topics covered:**
+- Trained the autoencoder (v1) with the original 115→64→32→16→32→64→115 architecture; got F1=0.6967 on initial local test, TPR=0.56 (well below the >0.90 recall target from the project charter).
+- Diagnosed the gap via threshold sweeping (`eval_threshold.py`) using `precision_recall_curve` on the full benign val set + full attack set. Found the naive 95th-percentile threshold was too conservative, but also found that a "best F1" threshold from the skewed dataset ratio was operationally useless (FPR=0.88 — would flag most benign traffic).
+- Built `tests/test_autoencoder.py` with a realistic percentile-based threshold sweep (based on benign-only error percentiles); selected p92.5 (threshold=0.00071623) as the practical operating point — Recall=0.7145, Precision=0.9050, F1=0.7985, FPR=0.075.
+- Built `training/analyze_feature_errors.py` to diagnose WHY 6 specific attack classes (SSH-Patator, Web_Brute_Force, Web_XSS, Web_SQL_Injection, FTP-Patator, Botnet_ARES) were poorly detected. Found they split into two groups:
+  - **FTP-Patator and Botnet_ARES** had real but compressed separating signal (12 and 14 significant features respectively, comparable to DoS_Hulk's 19).
+  - **SSH-Patator, Web_Brute_Force, Web_XSS, Web_SQL_Injection** had 0-1 significant features — i.e. genuinely indistinguishable from benign at the flow-feature level.
+- Ran an ablation: trained autoencoder v2 with a wider bottleneck (115→80→48→24→48→80→115, up from 16-dim) to test whether more bottleneck capacity would recover FTP-Patator/Botnet_ARES detection.
+- Compared v1 vs v2 (`training/compare_models.py`): v2 won on aggregate (F1 0.7136→0.8217, Recall 0.58→0.71, same FPR=0.05) and dramatically improved Port_Scan (0.51→0.99 TPR) as an unexpected bonus, but did NOT recover FTP-Patator (0.2658→0.2656, flat) or Botnet_ARES (0.0372→0.0369, flat) — confirming these two classes hit a feature-representation ceiling, not a model-capacity ceiling.
+- Promoted v2 to be the new primary model: archived v1 files to `models/archive/` (`autoencoder_v1_16dim.pt`, `threshold_v1_16dim.json`, `training_history_v1_16dim.json`), updated `models/autoencoder.pt`, `threshold.json`, `training_history.json` to the v2 (24-dim) versions, and updated `training/train_autoencoder.py` to use the 24-dim architecture as the new canonical definition going forward.
+
+**Key decisions made:**
+- Confirmed the reconstruction-error architecture has a real ceiling for 5 attack types (FTP-Patator, Botnet_ARES, SSH-Patator, Web_Brute_Force, Web_XSS) — these attacks statistically resemble benign traffic at the 115-feature flow level, and no amount of threshold tuning or bottleneck widening recovers them.
+- Web_SQL_Injection (n=24) and Heartbleed (n=12) remain flagged as statistically unevaluable due to sample size, consistent with the existing Heartbleed caveat already documented in this README.
+- Decided NOT to pursue 5 separate per-class binary classifiers; will instead build ONE multi-class hybrid classifier (XGBoost) covering just the 5 confirmed weak classes, to keep the production pipeline at low latency (<50ms target) and avoid 5x inference calls per flow.
+- v2 (24-dim) autoencoder is now the primary model in production; v1 (16-dim) retained in `models/archive/` for the evaluation report's ablation section.
+
+**Next Steps:**
+- Build `training/build_hybrid_dataset.py` — construct a labeled dataset of the 5 weak attack classes + a matched benign sample, stratified train/val/test split.
+- Build `training/train_hybrid_classifier.py` — train a class-weighted multi-class XGBoost classifier on this dataset.
+- Build `training/evaluate_combined_pipeline.py` — evaluate the FULL two-stage pipeline (autoencoder v2 + hybrid classifier together) end to end on the full attack/benign test data, comparing combined metrics against the autoencoder-alone baseline.
+- This hybrid classifier becomes Stage 1B: flows that pass the autoencoder threshold as "normal" get a second check from the hybrid classifier before being confirmed benign.
+- Target: push overall Recall closer to the charter's >0.90 goal by catching these 5 classes via supervised signal instead of reconstruction error.
+
+---
+
 ## System Architecture
 
 ```
@@ -1083,5 +1113,5 @@ python simulator/replay_simulator.py --rate 1 --benign-ratio 0.8
 
 ---
 
-*README last updated: 18 June 2026 (evening — replay simulator design + folder scaffold)*
-*Next update due: When backend /predict and simulator code are written*
+*README last updated: 19 June 2026 (Autoencoder ablation complete — v2 promoted to primary)*
+*Next update due: When DQN training environment is implemented*
