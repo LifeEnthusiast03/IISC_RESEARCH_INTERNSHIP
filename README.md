@@ -887,6 +887,21 @@ FastAPI /predict
 
 ---
 
+### 📅 22 June 2026 — Deep Dive into Preprocessing and Autoencoder Model
+
+**Topics covered:**
+- Reviewed and understood the data preprocessing pipelines: `preprocess_benign.py` and `preprocess_attack.py`.
+- Studied the Autoencoder model implementation (`train_autoencoder.py`), its architecture, and potential improvements.
+- Watched the [Deep Learning Tutorial video](https://www.youtube.com/watch?v=CAgWNxlmYsc&list=PLKnIA16_Rmvboy8bmDCjwNHgTaYH2puK7&index=5) to solidify understanding of the model's concepts and mechanics.
+- Used ChatGPT as an interactive learning assistant to clarify concepts. Logged the session here: [ChatGPT Conversation](https://chatgpt.com/share/6a393fe9-132c-83ee-8a48-04c924a693b6).
+
+**Key takeaways:**
+- Gained a solid grasp of how benign traffic is used to train the autoencoder, and how attack traffic is kept isolated for DQN environment states.
+- Understood the training loop, loss function computation, and threshold generation process.
+- Explored ways to further improve the autoencoder model based on insights from the tutorial and chat discussions.
+
+---
+
 ## System Architecture
 
 ```
@@ -1113,5 +1128,5 @@ python simulator/replay_simulator.py --rate 1 --benign-ratio 0.8
 
 ---
 
-*README last updated: 19 June 2026 (Autoencoder ablation complete — v2 promoted to primary)*
+*README last updated: 22 June 2026 (Autoencoder and preprocessing review)*
 *Next update due: When DQN training environment is implemented*
