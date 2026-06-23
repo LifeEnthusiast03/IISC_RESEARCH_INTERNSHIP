@@ -902,6 +902,115 @@ FastAPI /predict
 
 ---
 
+### 📅 23 June 2026 — DoS_Hulk False-Negative Diagnosis & Hybrid Classifier Extension to 7 Classes
+
+**Context:** After completing `evaluate_combined_pipeline.py`, DoS_Hulk was identified as the dominant source of false negatives in the combined two-stage pipeline: 297,642 total samples, TPR = 0.5194, 143,056 flows missed — accounting for ~95% of all remaining false negatives.
+
+---
+
+#### Part 1 — Root-Cause Diagnosis (`training/diagnose_dos_hulk.py`)
+
+Built a 4-step diagnostic script to answer: **should we lower the AE threshold, or extend the hybrid classifier?**
+
+**STEP 1 — Error distribution analysis:**
+- Loaded `errors_attack.npy` + `y_attacks_str.npy`, filtered to DoS_Hulk
+- Key finding: threshold sits at the **48th percentile** of DoS_Hulk errors — nearly half the class has very low reconstruction error
+- Missed-flow bucket split:
+
+| Bucket | Count | % of missed |
+|---|---|---|
+| Near threshold `[0.5×T, T]` | 4,414 | 3.09% |
+| Far below `[0, 0.5×T)` | 138,642 | 96.91% |
+
+- **Verdict: LIKELY REQUIRES FEATURE/MODEL FIX, NOT THRESHOLD** — 96.9% of missed DoS_Hulk flows sit far below even half the threshold, meaning they are nearly indistinguishable from benign traffic as far as the autoencoder is concerned. Lowering the threshold enough to catch them would flood the pipeline with false positives.
+
+**STEP 2 — Threshold sensitivity sweep (always runs):**
+
+| Threshold | Hulk TPR | Overall TPR | Benign FPR | Note |
+|---|---|---|---|---|
+| 0.0009142810 | 0.5194 | 0.7121 | 0.0500 | CURRENT |
+| 0.0007 | 0.5286 | 0.7171 | 0.0633 | FPR≤0.10 |
+| 0.0005 | 0.5340 | 0.7211 | 0.0944 | FPR≤0.10 |
+| 0.0003 | 0.5504 | 0.7415 | 0.1483 | FPR>0.10 ⚠️ |
+| 0.0002 | 0.5802 | 0.7597 | 0.2077 | FPR>0.10 ⚠️ |
+| 0.0001 | 0.5802 | 0.7690 | 0.3020 | FPR>0.10 ⚠️ |
+
+- Confirmed quantitatively: the maximum Hulk TPR gain within the FPR ≤ 0.10 budget is only **+3.4 pp** (0.5194 → 0.5340). The 48% of missed flows that sit far below threshold cannot be recovered by any operationally realistic threshold change.
+
+**STEP 3 — Sub-population feature analysis (ran because verdict = FEATURE/MODEL FIX):**
+- Split DoS_Hulk into detected (154,586) vs missed (143,056) at the current threshold
+- Computed mean feature values in each sub-population across all 115 features
+- Top 15 features by absolute mean difference (`|Δ|`) revealed clear structural separation
+- **Separation ratio = avg top-15 |Δ| / avg feature mean ≥ 0.20** → classified as **CLEAR FEATURE SEPARATION**
+- Interpretation: missed DoS_Hulk flows exhibit systematically different feature values from detected flows — they represent a **distinguishable sub-variant** of DoS_Hulk that the autoencoder reconstructs accurately (hence low error), making them invisible to Stage 1.
+
+**STEP 4 — Recommendation issued:**
+> **HYBRID CLASSIFIER EXTENSION RECOMMENDED:** missed DoS_Hulk forms a distinguishable sub-population based on Step 3 features; add `DoS_Hulk` as a 7th class to the existing hybrid classifier, training only on the currently-missed rows as positive examples.
+
+---
+
+#### Part 2 — Hybrid Classifier Extension: Adding DoS_Hulk as 7th Class
+
+**Conceptual design:**
+- The hybrid classifier (Stage 1B) already handles 5 weak attack classes + Benign (6 classes total)
+- Extend it to handle DoS_Hulk as a **7th class**, but using ONLY the 143,056 missed flows as positive training examples
+- Detected DoS_Hulk flows (already caught by AE) must NOT be included — they would be double-counted
+- Class imbalance (143K DoS_Hulk vs ~950 Web_XSS) handled downstream by `compute_sample_weight('balanced')` in `train_hybrid_classifier.py` — no code change needed there
+
+**Key implementation insight — AE-error filtering:**
+The filter `y_all == 'DoS_Hulk' AND errors_all ≤ threshold` is the critical correctness constraint. It ensures only the flows the autoencoder **currently passes** as normal are trained as positive DoS_Hulk examples. Using all DoS_Hulk rows would mix in the already-detected flows and create training data that doesn't match the inference-time distribution.
+
+**`build_hybrid_dataset.py` changes (only file modified):**
+
+| Change | Rationale |
+|---|---|
+| `MODEL_DIR` path constant added | Needed to load `models/threshold.json` |
+| `INCLUDE_DOS_HULK_MISSED = True` toggle | One flag to revert to 6-class model if needed |
+| `DOS_HULK_CLASS = "DoS_Hulk"` | Class name for label assignment |
+| `DOS_HULK_MAX_SAMPLES = None` | Use all 143K rows; set int to sub-sample |
+| `step1_load_attack_subset()` now returns `X_all, y_all, errors_all` too | Avoids reloading the 600K array in a separate call |
+| New `step1b_load_dos_hulk_missed()` | Reads threshold.json, masks DoS_Hulk AND error ≤ threshold, returns only missed rows |
+| `step3_combine_and_split()` accepts optional `X_hulk_missed, y_hulk_missed` | Appends before concat/split; `None` = 6-class mode unchanged |
+| `del X_all, errors_all` after step 1B | Frees ~530 MB RAM before loading X_train_benign (1.1 GB) |
+
+**`train_hybrid_classifier.py` — zero changes:** dynamically reads `n_classes` from `hybrid_label_map.json`, so it automatically handles 7 classes.
+
+**`evaluate_combined_pipeline.py` — zero changes:** already handles any number of hybrid classes.
+
+**Dataset composition after extension:**
+
+| Class | Rows (approx.) | Source |
+|---|---|---|
+| Benign | 25,000 | X_train_benign.npy (sampled) |
+| FTP-Patator | 9,531 | X_attacks.npy (5-class filter) |
+| Botnet_ARES | 5,508 | X_attacks.npy |
+| SSH-Patator | 5,949 | X_attacks.npy |
+| Web_Brute_Force | 2,733 | X_attacks.npy |
+| Web_XSS | 1,357 | X_attacks.npy |
+| **DoS_Hulk (missed)** | **143,056** | **X_attacks.npy filtered by errors_attack.npy ≤ threshold** |
+| **Total** | **~193,134** | |
+
+**Pipeline fix resolved today:** XGBoost 3.x API breaking change — `early_stopping_rounds` was moved from `fit()` to the `XGBClassifier` constructor. Fixed by moving the parameter into `XGB_PARAMS` dict.
+
+**Diagnostics fix resolved today:** Float key precision mismatch in `diagnose_dos_hulk.py` — `THRESHOLD_CANDIDATES` hardcoded `0.0009142810` (literal) but `json.load()` returns `0.0009142810013145208` (full precision), causing `KeyError` on dict lookup. Fixed by building the sweep list at runtime, prepending `current_threshold` (the exact JSON-loaded value) as the first element.
+
+**Scripts executed today (in order):**
+1. `python training/build_hybrid_dataset.py` — rebuilt 7-class dataset (~193K rows)
+2. `python training/train_hybrid_classifier.py` — retrained XGBoost with 7 classes
+3. `python training/evaluate_combined_pipeline.py` — full two-stage pipeline evaluation
+
+**Expected outcome of today's extension:** DoS_Hulk TPR should improve significantly from 0.52 (autoencoder alone) since the hybrid classifier now has 100K+ labeled positive examples of the missed sub-variant to train on.
+
+**New files created today:**
+- `training/diagnose_dos_hulk.py` — 4-step root-cause analysis for DoS_Hulk false negatives
+
+**Files modified today:**
+- `training/build_hybrid_dataset.py` — added Step 1B (DoS_Hulk missed flow extraction), extended to 7-class output
+- `training/train_hybrid_classifier.py` — fixed XGBoost 3.x `early_stopping_rounds` API change
+- `training/diagnose_dos_hulk.py` — fixed float key precision bug in threshold sweep dict lookup
+
+---
+
 ## System Architecture
 
 ```
@@ -1128,5 +1237,5 @@ python simulator/replay_simulator.py --rate 1 --benign-ratio 0.8
 
 ---
 
-*README last updated: 22 June 2026 (Autoencoder and preprocessing review)*
-*Next update due: When DQN training environment is implemented*
+*README last updated: 23 June 2026 (DoS_Hulk diagnosis + hybrid classifier extended to 7 classes)*
+*Next update due: When evaluate_combined_pipeline.py results confirm DoS_Hulk TPR improvement*
