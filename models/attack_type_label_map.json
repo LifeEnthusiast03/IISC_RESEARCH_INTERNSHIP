@@ -1,0 +1,13 @@
+{
+  "0": "Botnet_ARES",
+  "1": "DDoS_LOIT",
+  "2": "DoS_GoldenEye",
+  "3": "DoS_Hulk",
+  "4": "DoS_Slowhttptest",
+  "5": "DoS_Slowloris",
+  "6": "FTP-Patator",
+  "7": "Port_Scan",
+  "8": "SSH-Patator",
+  "9": "Web_Brute_Force",
+  "10": "Web_XSS"
+}

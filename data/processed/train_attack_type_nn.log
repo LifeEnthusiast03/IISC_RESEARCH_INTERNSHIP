@@ -1,0 +1,134 @@
+2026-06-24 15:49:25,871  INFO  ======================================================================
+2026-06-24 15:49:25,871  INFO  diagnose_nn_confusions.py — Attack-Type NN Confusion Diagnosis
+2026-06-24 15:49:25,871  INFO  ======================================================================
+2026-06-24 15:49:25,872  INFO  [LOAD] Loading test arrays, model, label map, feature names ...
+2026-06-24 15:49:27,320  INFO    X_test shape : (90016, 115)
+2026-06-24 15:49:27,324  INFO    y_test shape : (90016,)  unique classes : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+2026-06-24 15:49:27,324  INFO    Device       : cuda
+2026-06-24 15:49:27,324  INFO  [INFERENCE] Running model on test set ...
+2026-06-24 15:49:27,685  INFO    Overall test accuracy (sanity check): 0.9459
+2026-06-24 15:49:27,685  INFO  
+2026-06-24 15:49:27,685  INFO  ══════════════════════════════════════════════════════════════════════
+2026-06-24 15:49:27,685  INFO  STEP 1 — DoS_Hulk → FTP-Patator confusion vs quiet-Hulk overlap
+2026-06-24 15:49:27,685  INFO  ══════════════════════════════════════════════════════════════════════
+2026-06-24 15:49:27,686  INFO    True DoS_Hulk in test set          :  44,647
+2026-06-24 15:49:27,686  INFO    → Correctly classified as DoS_Hulk :  41,100
+2026-06-24 15:49:27,686  INFO    → Misclassified as FTP-Patator      :   3,363  ← subject of this analysis
+2026-06-24 15:49:27,687  INFO    True FTP-Patator (correctly classed):   1,185
+2026-06-24 15:49:27,699  INFO  
+2026-06-24 15:49:27,700  INFO    3-WAY FEATURE COMPARISON: quiet-Hulk signature features
+2026-06-24 15:49:27,700  INFO    (all values are means of MinMax-scaled features [0,1])
+2026-06-24 15:49:27,700  INFO  
+2026-06-24 15:49:27,700  INFO    Feature                              Misclassified  Correct Hulk      True FTP  Misclf≈FTP? Misclf≈Quiet?
+2026-06-24 15:49:27,700  INFO    ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+2026-06-24 15:49:27,702  INFO    packets_IAT_mean                          0.924352      0.381556      0.207555           no            no
+2026-06-24 15:49:27,703  INFO    packet_IAT_max                            0.924352      0.381556      0.207555           no            no
+2026-06-24 15:49:27,703  INFO    packet_IAT_min                            0.924352      0.381556      0.207555           no            no
+2026-06-24 15:49:27,703  INFO    packet_IAT_total                          0.924352      0.381556      0.207555           no            no
+2026-06-24 15:49:27,704  INFO    fwd_packets_IAT_mean                      0.075221      0.390728      0.304583          YES           YES
+2026-06-24 15:49:27,705  INFO    bwd_max_header_bytes                      0.384684      0.466687      0.573580           no            no
+2026-06-24 15:49:27,706  INFO    bwd_init_win_bytes                        0.000001      0.253947      0.215570          YES           YES
+2026-06-24 15:49:27,706  INFO    bwd_payload_bytes_variance                0.000000      0.231558      0.000007          YES           YES
+2026-06-24 15:49:27,706  INFO    ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+2026-06-24 15:49:27,707  INFO    Features where misclassified is closer to FTP than to correct Hulk : 3/8
+2026-06-24 15:49:27,707  INFO    Features in 'quiet' regime (misclf mean < 50% of correct-Hulk mean): 3/8
+2026-06-24 15:49:27,707  INFO  
+2026-06-24 15:49:27,707  INFO    VERDICT — DoS_Hulk → FTP-Patator:
+2026-06-24 15:49:27,707  INFO    ────────────────────────────────────────────────────────────────────
+2026-06-24 15:49:27,707  INFO    NOT CONFIRMED: misclassification appears UNRELATED to the previously
+2026-06-24 15:49:27,707  INFO      identified quiet sub-variant on these 8 features. The confusion
+2026-06-24 15:49:27,707  INFO      pattern requires separate investigation of other feature dimensions.
+2026-06-24 15:49:27,707  INFO      → FIX PATH: run a full 115-feature separation analysis between
+2026-06-24 15:49:27,707  INFO        misclassified-Hulk and true FTP-Patator to find the driving features.
+2026-06-24 15:49:27,710  INFO  
+2026-06-24 15:49:27,710  INFO  ══════════════════════════════════════════════════════════════════════
+2026-06-24 15:49:27,710  INFO  STEP 2 — Web_Brute_Force vs Web_XSS feature separation check
+2026-06-24 15:49:27,710  INFO  ══════════════════════════════════════════════════════════════════════
+2026-06-24 15:49:27,711  INFO    True Web_Brute_Force rows in test set :   410
+2026-06-24 15:49:27,711  INFO    True Web_XSS rows in test set         :   204
+2026-06-24 15:49:27,711  INFO  
+2026-06-24 15:49:27,722  INFO    TOP 15 FEATURES by absolute mean difference (Web_Brute_Force vs Web_XSS):
+2026-06-24 15:49:27,722  INFO    (MinMax-scaled values; norm_sep = |diff| / pooled_std)
+2026-06-24 15:49:27,722  INFO  
+2026-06-24 15:49:27,723  INFO      #  Feature                               WBrute mean   XSS mean    |diff|   norm_sep   signal?
+2026-06-24 15:49:27,723  INFO    ─────────────────────────────────────────────────────────────────────────────────────────────────
+2026-06-24 15:49:27,723  INFO      1  fwd_packets_IAT_mean                     0.434113   0.509766  0.075653     0.1520      weak
+2026-06-24 15:49:27,723  INFO      2  fwd_packets_IAT_min                      0.434113   0.509766  0.075653     0.1520      weak
+2026-06-24 15:49:27,723  INFO      3  fwd_packets_IAT_total                    0.434113   0.509766  0.075653     0.1520      weak
+2026-06-24 15:49:27,723  INFO      4  fwd_packets_IAT_max                      0.434113   0.509766  0.075653     0.1520      weak
+2026-06-24 15:49:27,723  INFO      5  bwd_mean_header_bytes                    0.454357   0.398124  0.056233     0.1399      weak
+2026-06-24 15:49:27,723  INFO      6  bwd_min_header_bytes                     0.411531   0.356506  0.055025     0.1520      weak
+2026-06-24 15:49:27,723  INFO      7  bwd_max_header_bytes                     0.427017   0.374811  0.052205     0.1379      weak
+2026-06-24 15:49:27,723  INFO      8  bwd_packets_IAT_max                      0.053655   0.014705  0.038950     0.1976      weak
+2026-06-24 15:49:27,724  INFO      9  bwd_packets_IAT_mean                     0.053655   0.014705  0.038950     0.1976      weak
+2026-06-24 15:49:27,724  INFO     10  bwd_packets_IAT_min                      0.053655   0.014705  0.038950     0.1976      weak
+2026-06-24 15:49:27,724  INFO     11  bwd_packets_IAT_total                    0.053655   0.014705  0.038950     0.1976      weak
+2026-06-24 15:49:27,724  INFO     12  packet_IAT_min                           0.487768   0.524471  0.036703     0.0733      weak
+2026-06-24 15:49:27,724  INFO     13  packets_IAT_mean                         0.487768   0.524471  0.036703     0.0733      weak
+2026-06-24 15:49:27,724  INFO     14  packet_IAT_total                         0.487768   0.524471  0.036703     0.0733      weak
+2026-06-24 15:49:27,724  INFO     15  packet_IAT_max                           0.487768   0.524471  0.036703     0.0733      weak
+2026-06-24 15:49:27,724  INFO    ─────────────────────────────────────────────────────────────────────────────────────────────────
+2026-06-24 15:49:27,724  INFO    Features with norm_sep > 1.0 (STRONG separation) : 0
+2026-06-24 15:49:27,724  INFO    Features with norm_sep > 0.5 (MODERATE+)          : 0
+2026-06-24 15:49:27,724  INFO    Max normalized separation score (any feature)     : 0.1976
+2026-06-24 15:49:27,725  INFO  
+2026-06-24 15:49:27,725  INFO    FULL 115-FEATURE SEPARATION SUMMARY:
+2026-06-24 15:49:27,725  INFO      norm_sep > 2.0 (very strong)       :   1 features
+2026-06-24 15:49:27,725  INFO      norm_sep > 1.0 (strong)            :   1 features
+2026-06-24 15:49:27,725  INFO      norm_sep > 0.5 (moderate)          :   1 features
+2026-06-24 15:49:27,725  INFO      norm_sep > 0.0 (any signal)        :  77 features
+2026-06-24 15:49:27,725  INFO  
+2026-06-24 15:49:27,725  INFO    VERDICT — Web_Brute_Force vs Web_XSS:
+2026-06-24 15:49:27,725  INFO    ────────────────────────────────────────────────────────────────────
+2026-06-24 15:49:27,725  INFO    LIKELY FEATURE CEILING: no feature achieves norm_sep > 0.5.
+2026-06-24 15:49:27,725  INFO      Web_Brute_Force and Web_XSS are statistically very similar at the
+2026-06-24 15:49:27,725  INFO      115-feature flow level. The difference between classes is smaller
+2026-06-24 15:49:27,726  INFO      than within-class noise for every feature.
+2026-06-24 15:49:27,726  INFO      → FIX PATH: consider treating them as a merged 'ambiguous web
+2026-06-24 15:49:27,726  INFO        attack' action category in the DQN. Both map to similar remediation
+2026-06-24 15:49:27,726  INFO        actions (Kill Process / Revoke Credentials) so merging into a
+2026-06-24 15:49:27,726  INFO        single 'web_application_attack' class has low operational cost.
+2026-06-24 15:49:27,726  INFO        Do NOT spend further model capacity trying to separate them at
+2026-06-24 15:49:27,726  INFO        this feature granularity.
+2026-06-24 15:49:27,726  INFO  
+2026-06-24 15:49:27,726  INFO  ══════════════════════════════════════════════════════════════════════
+2026-06-24 15:49:27,726  INFO  STEP 3 — Combined Summary & Recommendations
+2026-06-24 15:49:27,726  INFO  ══════════════════════════════════════════════════════════════════════
+2026-06-24 15:49:27,726  INFO  
+2026-06-24 15:49:27,726  INFO    ┌─────────────────────────────────────────────────────────────────┐
+2026-06-24 15:49:27,726  INFO    │ Confusion 1: DoS_Hulk → FTP-Patator                           │
+2026-06-24 15:49:27,727  INFO    ├─────────────────────────────────────────────────────────────────┤
+2026-06-24 15:49:27,727  INFO    │ Verdict    : NOT CONFIRMED — separate investigation needed     │
+2026-06-24 15:49:27,727  INFO    │ Fix path   : Full 115-feature separation analysis required     │
+2026-06-24 15:49:27,727  INFO    │ Priority   : HIGH                                              │
+2026-06-24 15:49:27,727  INFO    └─────────────────────────────────────────────────────────────────┘
+2026-06-24 15:49:27,727  INFO  
+2026-06-24 15:49:27,727  INFO    ┌─────────────────────────────────────────────────────────────────┐
+2026-06-24 15:49:27,727  INFO    │ Confusion 2: Web_Brute_Force ↔ Web_XSS                        │
+2026-06-24 15:49:27,727  INFO    ├─────────────────────────────────────────────────────────────────┤
+2026-06-24 15:49:27,727  INFO    │ Verdict    : LIKELY FEATURE CEILING (max norm_sep=0.198) │
+2026-06-24 15:49:27,727  INFO    │ Root cause : Classes are statistically near-identical at the   │
+2026-06-24 15:49:27,727  INFO    │              flow-feature level                                │
+2026-06-24 15:49:27,727  INFO    │ Fix path   : Merge into a single 'web_application_attack'      │
+2026-06-24 15:49:27,728  INFO    │              class; assign unified DQN action (Kill Process,   │
+2026-06-24 15:49:27,728  INFO    │              action 3, is conservative and correct for both)   │
+2026-06-24 15:49:27,728  INFO    │ Priority   : LOW (merging reduces operational risk, not raises)│
+2026-06-24 15:49:27,728  INFO    └─────────────────────────────────────────────────────────────────┘
+2026-06-24 15:49:27,728  INFO  
+2026-06-24 15:49:27,728  INFO    NOTE ON DQN IMPACT:
+2026-06-24 15:49:27,728  INFO    ─────────────────────────────────────────────────────────────────
+2026-06-24 15:49:27,728  INFO    Confusion 1 (Hulk→FTP): both DoS_Hulk and FTP-Patator map to
+2026-06-24 15:49:27,728  INFO    different optimal DQN actions (Block IP=0 vs Revoke Creds=1).
+2026-06-24 15:49:27,728  INFO    The ~3,363 misclassified rows will cause the DQN to receive a
+2026-06-24 15:49:27,728  INFO    wrong attack-type probability vector, potentially biasing it
+2026-06-24 15:49:27,729  INFO    toward action 1 for those flows. However, since the NN softmax
+2026-06-24 15:49:27,729  INFO    is part of the DQN state (not a hard decision), the DQN can
+2026-06-24 15:49:27,729  INFO    learn to partially compensate via the raw flow features also
+2026-06-24 15:49:27,729  INFO    present in its state.
+2026-06-24 15:49:27,729  INFO  
+2026-06-24 15:49:27,729  INFO    Confusion 2 (WBrute↔XSS): DQN optimal actions differ (Revoke=1
+2026-06-24 15:49:27,729  INFO    vs Kill Process=3). This confusion directly degrades DQN quality
+2026-06-24 15:49:27,729  INFO    for these two classes and should be prioritised for fixing.
+2026-06-24 15:49:27,729  INFO  ══════════════════════════════════════════════════════════════════════
+2026-06-24 15:49:27,730  INFO  
+2026-06-24 15:49:27,730  INFO  ✓  diagnose_nn_confusions.py complete.  Log → E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\diagnose_nn_confusions.log
