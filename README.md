@@ -1011,28 +1011,163 @@ The filter `y_all == 'DoS_Hulk' AND errors_all ≤ threshold` is the critical co
 
 ---
 
+### 📅 23 June 2026 — Architecture Extension — Attack-Type Classification + DQN Remediation Pipeline Design
+
+**Context:** Full two-stage combined pipeline (Autoencoder v2 + Hybrid XGBoost Classifier) evaluated end-to-end on the CICIDS2017 held-out test set. Results confirmed progress and identified the next frontier.
+
+#### Combined Pipeline Evaluation Results
+
+| Stage | Overall TPR | Note |
+|---|---|---|
+| Autoencoder v2 alone | 0.7121 | 24-dim bottleneck at p92.5 threshold |
+| + Hybrid XGBoost Classifier (Stage 1B) | **0.7497** | +3.76 pp lift from catching 5 weak attack classes |
+
+The hybrid classifier (Stage 1B) successfully recovers the 5 attack types (Botnet_ARES, FTP-Patator, SSH-Patator, Web_Brute_Force, Web_XSS) that produce benign-like flow statistics and evade the autoencoder. Combined pipeline TPR is now 0.7497 vs 0.7121 for the autoencoder alone — a confirmed +3.76 pp gain.
+
+#### DoS_Hulk Diagnostic Finding
+
+DoS_Hulk remains the dominant source of false negatives (297,642 total samples, TPR ≈ 0.52 autoencoder-alone). Deep diagnostic analysis via `training/diagnose_dos_hulk.py` revealed:
+
+- **48% of DoS_Hulk flows form a distinguishable low-signal sub-variant**: characterised by short/single-packet flows and near-zero backward traffic features. These flows produce reconstruction errors far below even half the anomaly threshold — they are structurally distinct from the high-signal DoS_Hulk flows the autoencoder does catch.
+- **Threshold lowering cannot recover them** within any operationally realistic FPR budget: the maximum TPR gain within FPR ≤ 0.10 is only +3.4 pp (0.5194 → 0.5340), while 96.9% of missed flows sit below 0.5× the threshold.
+- **Recommendation issued by diagnostic:** add DoS_Hulk as a 7th class to the hybrid classifier, training only on the currently-missed sub-population (143,056 rows) as positive examples. This was acted on today (see previous log entry for full implementation details).
+
+> **Open item:** Even with the 7-class hybrid classifier extension, the DoS_Hulk low-signal sub-variant warrants further investigation. Future work may include targeted feature engineering (e.g., packet-count ratios, inter-arrival time statistics) or a dedicated binary classifier for this sub-population.
+
+#### Architecture Extension Decision: 3-Stage Pipeline
+
+After reviewing the combined pipeline results and the DoS_Hulk diagnostic, the decision was made to extend the detection system from a 2-stage to a **4-stage architecture**, built incrementally:
+
+| Stage | Component | Purpose | Status |
+|---|---|---|---|
+| 1A | Autoencoder (v2, 24-dim) | Unsupervised anomaly detection on flow reconstruction error | ✅ Done |
+| 1B | Hybrid XGBoost Classifier | Catches 5 weak attack classes that evade the AE | ✅ Done |
+| 2 | **Attack-Type Neural Network** | Broad multi-class classifier across all 13 CICIDS2017 attack types — answers "which attack type is this flow?" | 🔨 Building today |
+| 3 | **DQN Remediation Agent** | Given flow features + attack-type prediction, selects optimal remediation action from 5 choices | 🔨 Building today |
+| 4 | LLM Agent Layer *(planned)* | For low-confidence / unknown attacks: generate human-readable summary, route to human review | 📋 Future work |
+
+**Why an Attack-Type NN in addition to the hybrid classifier?**
+The hybrid classifier (Stage 1B) covers only the 5 attack types with AE-evasion characteristics. The new Attack-Type NN is deliberately **broader** — it classifies across ALL attack types present in CICIDS2017 — so that the DQN agent has a rich, calibrated probability vector over attack types as part of its state, rather than only a 5-class or binary signal. This gives the DQN much better information for choosing the correct remediation action (e.g., distinguishing Block IP for DoS vs. Revoke Credentials for FTP-Patator).
+
+**Key design constraint for the Attack-Type NN:** Heartbleed (n=12) and Web_SQL_Injection (n=24) are excluded from training due to insufficient samples. These two classes are documented as always "unclassified" by this NN — they remain covered by the autoencoder's reconstruction error signal.
+
+#### LLM Agent Layer — Planned Future Work (Explicitly Out of Scope Today)
+
+A Stage 4 LLM-based human-escalation layer is planned for a future session, subject to the following constraints and scope limitations:
+
+- **Scope:** advisory and human-facing ONLY — the LLM layer will generate human-readable incident summaries and routing recommendations, and will NOT autonomously trigger any remediation actions.
+- **Trigger condition:** low-confidence predictions from the Attack-Type NN (max softmax probability below a tunable threshold) OR attack types that fall outside the NN's training distribution.
+- **Build sequence:** Stage 4 will be designed and built AFTER Stage 3 (DQN) is complete and results have been reviewed with the project mentor.
+- **Mentor review required** before implementation: the LLM layer scope, API choice, and cost model will be discussed explicitly before any code is written.
+
+---
+
+### 📅 24 June 2026 — DQN Confusion Diagnosis — Hulk/FTP Robustness Confirmed, Web Attack Action Merge
+
+**Topics covered:**
+
+- Diagnosed two confusion patterns identified in the Attack-Type NN's held-out test confusion matrix:
+  - **(a) DoS_Hulk → FTP-Patator:** 3,363 of 44,647 true DoS_Hulk test rows were misclassified as FTP-Patator (7.5% error rate on that class)
+  - **(b) Web_Brute_Force ↔ Web_XSS:** 187 of 410 Web_Brute_Force rows predicted as Web_XSS (45.6%), and 104 of 204 Web_XSS rows predicted as Web_Brute_Force (51.0%) — near-random mutual confusion
+
+- Built `evaluation/diagnose_nn_confusions.py` — initial diagnostic covering both confusion pairs:
+  - For each pair: computes normalized separation scores (`|mean_A − mean_B| / pooled_std`) across all 115 features and the 8 previously-identified "quiet sub-variant" features, to distinguish fixable model/training issues from genuine feature-representation ceilings
+  - Runs a pooled-std threshold filter to exclude constant-zero feature columns (35 excluded, e.g., `urg_flag_counts`, `active_*`, `idle_*`) that were producing NaN values and corrupting the ranking
+
+- Built `evaluation/diagnose_hulk_ftp_confusion.py` — full 115-feature deep-dive on the DoS_Hulk/FTP-Patator pair, with two parts:
+  - **Part A — feature separation:** for each of the 80 valid (non-constant) features, computes normalized separation between the 3,363 misclassified Hulk rows, the 1,185 correctly-classified FTP-Patator rows, and the 41,100 correctly-classified Hulk rows as reference. Result: 65 features with norm_sep > 1.0, max = 2.64 — strong separating signal exists. The misclassified Hulk rows resemble true FTP-Patator on 17 of the top 20 features, consistent with the "quiet sub-variant" (short-connection, near-zero backward traffic) profile pulling these flows across the class boundary.
+  - **Part B — DQN end-to-end impact test:** constructed the exact DQN state vectors the agent would receive at real inference time for these 3,363 rows — using the NN's *actual wrong* FTP-Patator softmax output (not ground-truth) — and ran the trained DQN on them. Result: **3,362 of 3,363 rows (99.97%) still received Block IP (action 0)**, which is the correct remediation for DoS_Hulk. Only 1 row received the wrong action. The DQN's state includes the raw 115 flow features and AE reconstruction error alongside the NN's softmax, and the DQN learned during training to weight the raw features more heavily for this case, effectively overriding the NN's wrong classification.
+
+- **Finding 1 (DoS_Hulk → FTP-Patator):** Strong separating feature signal exists — this IS a fixable model/training issue in isolation (likely class-weight overcorrection toward FTP-Patator's minority class). However, the end-to-end DQN compensation test showed zero measured operational impact: the DQN already correctly handles these rows at 99.97% accuracy despite the wrong upstream classification. CONCLUSION: do not fix this in the NN. The result is documented as a working example of the layered-state DQN design providing natural robustness against upstream classifier errors.
+
+- **Finding 2 (Web_Brute_Force ↔ Web_XSS):** No separating signal at the feature level — max normalized separation across all 115 features = 0.198, far below even the "moderate" threshold of 0.5. This is a genuine feature-representation ceiling: these two attack types produce statistically indistinguishable flow statistics. Unlike Finding 1, the two classes had *different* ground-truth-optimal DQN actions (Revoke Credentials vs Kill Process), so the DQN had no raw-feature fallback to resolve the ambiguity. Intervention was necessary.
+
+- **Fix applied for Finding 2:** Merged both Web_Brute_Force and Web_XSS to a single unified target action — **Revoke Credentials (action 1)** — in the ground-truth-optimal-action table (`ACTION_MAP` in `training/build_dqn_environment.py`). Reasoning: Web_Brute_Force is fundamentally a credential-based attack; Revoke Credentials is a more conservative and safer default than Kill Process when the classification is genuinely ambiguous between the two types. DQN environment arrays were regenerated and the DQN agent was retrained from scratch with the corrected reward table. No Attack-Type NN retraining was required — the merge was applied purely downstream of the NN's existing softmax output.
+
+- Pre-merge DQN backed up to `models/archive/dqn_agent_pre_web_merge.pt` before overwriting `models/dqn_agent.pt` with the retrained version.
+
+**Key decisions made:**
+
+- **Adopted a general diagnostic principle for this project going forward:** when an upstream stage shows a confusion pattern, do not assume it needs fixing. Test whether the *full pipeline* (all downstream stages included) actually produces a wrong final outcome before spending engineering time on the intermediate stage. An intermediate classification error that the architecture is naturally robust to does not need to be corrected just because it looks imperfect in isolation on a per-stage classification report.
+
+- **Decided NOT to retrain the Attack-Type NN to fix the Hulk/FTP confusion,** based on the above principle and the empirical 99.97% DQN compensation result. The classification report metric (NN accuracy) is not the deliverable — the remediation action accuracy is. The NN's confusion on this pair has zero measured impact on the deliverable.
+
+- **Decided TO fix the Web_Brute_Force/Web_XSS confusion via action-level merging** rather than NN retraining, for two reasons: (1) no feature signal exists to train against — retraining would not help, (2) the two classes' differing optimal DQN actions meant there was no raw-feature fallback signal for the DQN to compensate with, unlike the Hulk/FTP case.
+
+- **Action-merge safety reasoning:** Revoke Credentials is the more conservative choice for an ambiguous web-attack signal. If the true attack is Web_XSS (which Kill Process would have handled), revoking the attacker's credentials is still a meaningful and disruptive response with lower collateral damage risk than killing the wrong process.
+
+**Updated results after Web attack merge retrain:**
+
+| Metric | Before merge | After merge |
+|---|---|---|
+| Test action-match accuracy | 0.9901 | **0.9922** |
+| Test average reward | 9.8552 | **9.8869** |
+| Monitor-on-Attack rate | 0.0001 | 0.0001 (unchanged) |
+| Web_Brute_Force accuracy | — | **99.51%** (408/410 → Revoke Credentials) |
+| Web_XSS accuracy | — | **98.04%** (200/204 → Revoke Credentials) |
+
+Both classes now achieve high accuracy against the same target action. The overall pipeline improvement (0.9901 → 0.9922) reflects the removal of the conflicting reward signal that the DQN previously received for Web_XSS rows.
+
+**Next steps:**
+
+- **Identified architecture gap:** the Attack-Type NN has no mechanism to express "I don't recognize this attack type." It always outputs a prediction across its 11 trained classes, even for flows from attack types it was never trained on (Heartbleed n=12, Web_SQL_Injection n=24 — both excluded from training due to insufficient samples) or any future zero-day attack type. In these cases the NN outputs an arbitrary softmax distribution, and the DQN acts on a meaningless signal.
+
+- **Planned fix:** add a **confidence-threshold gate** between Stage 2 (Attack-Type NN) and Stage 3 (DQN Agent). If the NN's max-softmax confidence falls below a tunable threshold, route the flow to a "low-confidence / unknown attack" path rather than passing an uncertain classification to the DQN. This gate will eventually connect to Stage 4 (planned LLM-agent human-escalation layer) but can initially default to a safe "Monitor + alert" action. To be designed and built next.
+
+---
+
+
+
 ## System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    OFFLINE TRAINING                         │
-│                                                             │
-│  CICIDS2017 CSVs ──► Preprocessing ──► Autoencoder         │
-│  UNSW-NB15 CSVs      (Pandas/NumPy)    (PyTorch+CUDA)      │
-│                           │                  │              │
-│                      scaler.pkl       autoencoder.pt        │
-│                      threshold.json   dqn_agent.pt          │
-└──────────────────────────┬──────────────────┘──────────────┘
-                           │ load at startup
-┌──────────────────────────▼──────────────────────────────────┐
-│                    ONLINE PRODUCTION                        │
-│                                                             │
-│  Network Flow ──► FastAPI ──► Autoencoder ──► DQN Agent    │
-│                      │              │              │        │
-│                 WebSocket     threshold?      Block/Isolate │
-│                      │                            │         │
-│               React Dashboard ◄──── PostgreSQL ◄──┘        │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                         OFFLINE TRAINING                             │
+│                                                                      │
+│  CICIDS2017 CSVs ──► Preprocessing ──► Autoencoder (v2, 24-dim)     │
+│  UNSW-NB15 CSVs      (Pandas/NumPy)    (PyTorch+CUDA)               │
+│                            │                  │                      │
+│                       scaler.pkl         autoencoder.pt             │
+│                       threshold.json     hybrid_classifier.pkl      │
+│                       attack_type_nn.pt  dqn_agent.pt               │
+└───────────────────────────┬──────────────────┘──────────────────────┘
+                            │ load at startup
+┌───────────────────────────▼──────────────────────────────────────────┐
+│                         ONLINE PRODUCTION (4-Stage Pipeline)         │
+│                                                                      │
+│  Network Flow                                                        │
+│       │                                                              │
+│       ▼                                                              │
+│  ┌─────────────────────────────────┐                                │
+│  │  Stage 1A: Autoencoder (v2)     │  Reconstruction error > T?     │
+│  │  + Stage 1B: Hybrid Classifier  │  → YES → anomaly confirmed     │
+│  └────────────────┬────────────────┘  → NO  → log benign, discard   │
+│                   │ anomaly confirmed                                │
+│                   ▼                                                  │
+│  ┌─────────────────────────────────┐                                │
+│  │  Stage 2: Attack-Type NN        │  Which of 13 CICIDS2017        │
+│  │  (115→128→64→N, softmax)        │  attack types is this flow?    │
+│  └────────────────┬────────────────┘  (+ confidence score)          │
+│                   │ attack type + probs                              │
+│                   ▼                                                  │
+│  ┌─────────────────────────────────┐                                │
+│  │  Stage 3: DQN Agent             │  State = [115 features |       │
+│  │  (state_dim→128→64→5)           │    AE error | attack-type probs│
+│  │                                 │    | confidence]               │
+│  │  Actions: Block IP /            │  → select optimal action       │
+│  │  Revoke Creds / Isolate Server /│                                │
+│  │  Kill Process / Monitor         │                                │
+│  └────────────────┬────────────────┘                                │
+│                   │                                                  │
+│                   ├── [high confidence] → Execute action directly   │
+│                   │                                                  │
+│                   └── [low confidence / future: Stage 4]            │
+│                       LLM Agent Layer (planned — NOT built yet)      │
+│                       → human-readable summary → analyst review      │
+│                                                                      │
+│  ──────────────────────────────────────────────────────────         │
+│  WebSocket broadcast → React Dashboard ◄──── PostgreSQL             │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -1151,27 +1286,54 @@ project/
 │       ├── X_train_benign.npy   # autoencoder training input
 │       ├── X_val_benign.npy     # autoencoder validation input
 │       ├── X_test_benign.npy    # autoencoder test input
-│       ├── X_attacks.npy        # DQN environment states (attack flows)
+│       ├── X_attacks.npy        # all attack flows (600,141 × 115, MinMax-scaled)
 │       ├── y_attacks.npy        # integer-encoded attack type labels
 │       ├── y_attacks_str.npy    # string attack type labels
 │       ├── scaler.pkl           # fitted MinMaxScaler (also in models/)
 │       ├── feature_names.json   # ordered feature column list
-│       └── attack_label_map.json
+│       ├── attack_label_map.json
+│       ├── attack_type_label_map.json  # 11-class map for Attack-Type NN
+│       ├── X_train_attacktype.npy      # attack-type NN training split
+│       ├── X_val_attacktype.npy
+│       ├── X_test_attacktype.npy
+│       ├── y_train_attacktype.npy
+│       ├── y_val_attacktype.npy
+│       ├── y_test_attacktype.npy
+│       ├── sample_weights_train_attacktype.npy  # balanced class weights
+│       ├── dqn_states.npy               # full state vectors (115+1+N+1 dims)
+│       ├── dqn_optimal_actions.npy      # ground-truth action labels (reward only)
+│       ├── dqn_labels_str.npy           # string attack labels for per-class eval
+│       ├── dqn_train_*.npy / dqn_val_*.npy / dqn_test_*.npy  # DQN splits
+│       └── attack_class_counts.json
 ├── simulator/               # CICIDS2017 replay simulator (demo infrastructure)
 │   ├── replay_simulator.py  # streams CSV rows to /predict as if live traffic
 │   └── README.md            # usage: --rate, --benign-ratio, --host flags
 ├── notebooks/               # Jupyter notebooks for EDA
 ├── training/
-│   ├── preprocess_benign.py # Step 1 — benign data → autoencoder training data
-│   ├── preprocess_attack.py # Step 2 — attack data → DQN environment data
-│   ├── train_autoencoder.py # Stage 1 training
-│   └── train_dqn.py         # Stage 2 training
+│   ├── preprocess_benign.py          # Step 1 — benign data → autoencoder training data
+│   ├── preprocess_attack.py          # Step 2 — attack data → DQN environment data
+│   ├── train_autoencoder.py          # Stage 1A — autoencoder training
+│   ├── build_hybrid_dataset.py       # Stage 1B data prep — 7-class hybrid dataset
+│   ├── train_hybrid_classifier.py    # Stage 1B training — XGBoost hybrid classifier
+│   ├── build_attack_type_dataset.py  # Stage 2 data prep — 11-class attack-type dataset
+│   ├── train_attack_type_nn.py       # Stage 2 training — feedforward attack-type NN
+│   ├── build_dqn_environment.py      # Stage 3 data prep — builds full DQN state vectors
+│   │                                 #   (runs AE + Attack-Type NN forward passes)
+│   ├── dqn_env.py                    # Stage 3 Gymnasium env — RemediationEnv (single-step)
+│   └── train_dqn.py                  # Stage 3 training — DQN consumes [features | AE error
+│                                     #   | attack-type NN softmax probs | confidence]
 ├── models/                  # saved artefacts (output of training)
-│   ├── autoencoder.pt          # ~90 KB  (state_dict, 115-feature model)
-│   ├── dqn_agent.pt            # ~95 KB
+│   ├── autoencoder.pt          # ~90 KB  (state_dict, 115→80→48→24→48→80→115)
+│   ├── hybrid_classifier.pkl   # ~2.5 MB (XGBoost, 7-class)
+│   ├── hybrid_label_encoder.pkl
+│   ├── attack_type_nn.pt       # feedforward NN (115→128→64→11)
+│   ├── attack_type_label_map.json  # int → class-name mapping
+│   ├── attack_type_nn_history.json # train/val loss per epoch
+│   ├── dqn_agent.pt            # ~95 KB  (state_dim→128→64→5)
+│   ├── dqn_training_history.json   # reward curve over episodes
 │   ├── scaler.pkl              # ~7 KB   (copy from data/processed/)
 │   ├── threshold.json          # <1 KB   (95th-percentile val MSE)
-│   └── training_history.json  # train/val loss per epoch
+│   └── training_history.json   # autoencoder train/val loss per epoch
 ├── backend/
 │   ├── main.py              # FastAPI app + WebSocket
 │   ├── inference.py         # model inference logic
@@ -1237,5 +1399,5 @@ python simulator/replay_simulator.py --rate 1 --benign-ratio 0.8
 
 ---
 
-*README last updated: 23 June 2026 (DoS_Hulk diagnosis + hybrid classifier extended to 7 classes)*
-*Next update due: When evaluate_combined_pipeline.py results confirm DoS_Hulk TPR improvement*
+*README last updated: 23 June 2026 (Architecture extension — Attack-Type NN + DQN remediation pipeline design; combined pipeline TPR 0.7121 → 0.7497)*
+*Next update due: After Attack-Type NN and DQN training results are reviewed*

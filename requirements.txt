@@ -30,6 +30,12 @@ torch==2.6.0+cu124
 torchvision==0.21.0+cu124
 torchaudio==2.6.0+cu124
 
+# ── Reinforcement learning ───────────────────────────────────
+gymnasium==0.29.1
+
+# ── Gradient boosting (hybrid classifier) ───────────────────
+xgboost>=2.0
+
 # ── PyTorch dependencies (auto-installed with torch) ─────────
 filelock==3.29.0
 typing_extensions==4.15.0

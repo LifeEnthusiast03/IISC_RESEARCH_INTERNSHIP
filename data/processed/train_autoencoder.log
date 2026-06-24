@@ -1,0 +1,64 @@
+2026-06-24 15:17:20,604  INFO  ======================================================================
+2026-06-24 15:17:20,604  INFO  build_dqn_environment.py — Stage 3 Data Preparation
+2026-06-24 15:17:20,604  INFO  ======================================================================
+2026-06-24 15:17:21,752  INFO    Device: cuda
+2026-06-24 15:17:21,752  INFO  [STEP 1] Loading trained models ...
+2026-06-24 15:17:21,752  INFO    Attack-Type NN classes: 11
+2026-06-24 15:17:21,912  INFO    Autoencoder loaded from E:\IISC\IISC_RESEARCH_INTERNSHIP\models\autoencoder.pt
+2026-06-24 15:17:21,916  INFO    AttackTypeNN loaded from E:\IISC\IISC_RESEARCH_INTERNSHIP\models\attack_type_nn.pt
+2026-06-24 15:17:21,916  INFO  [STEP 2] Loading flow arrays ...
+2026-06-24 15:17:24,047  INFO    Attack rows : 600,141
+2026-06-24 15:17:24,048  INFO    Benign rows : 5,000  (sampled from X_train_benign)
+2026-06-24 15:17:24,048  INFO    Total rows  : 605,141
+2026-06-24 15:17:24,224  INFO    Class distribution:
+2026-06-24 15:17:24,224  INFO      DoS_Hulk                         297,642
+2026-06-24 15:17:24,225  INFO      Port_Scan                        161,315
+2026-06-24 15:17:24,225  INFO      DDoS_LOIT                         95,729
+2026-06-24 15:17:24,225  INFO      FTP-Patator                        9,531
+2026-06-24 15:17:24,225  INFO      DoS_GoldenEye                      8,363
+2026-06-24 15:17:24,225  INFO      DoS_Slowhttptest                   6,856
+2026-06-24 15:17:24,225  INFO      SSH-Patator                        5,949
+2026-06-24 15:17:24,225  INFO      Botnet_ARES                        5,508
+2026-06-24 15:17:24,226  INFO      DoS_Slowloris                      5,122
+2026-06-24 15:17:24,226  INFO      Benign                             5,000
+2026-06-24 15:17:24,226  INFO      Web_Brute_Force                    2,733
+2026-06-24 15:17:24,226  INFO      Web_XSS                            1,357
+2026-06-24 15:17:24,226  INFO      Web_SQL_Injection                     24
+2026-06-24 15:17:24,227  INFO      Heartbleed                            12
+2026-06-24 15:17:24,333  INFO  [STEP 3] Building state vectors ... state_dim=128
+2026-06-24 15:17:24,334  INFO    Processing 605,141 rows in 591 batches of 1024 ...
+2026-06-24 15:17:24,888  INFO    Batch    59/591  rows  60,416/605,141
+2026-06-24 15:17:25,052  INFO    Batch   118/591  rows 120,832/605,141
+2026-06-24 15:17:25,207  INFO    Batch   177/591  rows 181,248/605,141
+2026-06-24 15:17:25,346  INFO    Batch   236/591  rows 241,664/605,141
+2026-06-24 15:17:25,492  INFO    Batch   295/591  rows 302,080/605,141
+2026-06-24 15:17:25,628  INFO    Batch   354/591  rows 362,496/605,141
+2026-06-24 15:17:25,774  INFO    Batch   413/591  rows 422,912/605,141
+2026-06-24 15:17:25,908  INFO    Batch   472/591  rows 483,328/605,141
+2026-06-24 15:17:26,029  INFO    Batch   531/591  rows 543,744/605,141
+2026-06-24 15:17:26,136  INFO    Batch   590/591  rows 604,160/605,141
+2026-06-24 15:17:26,138  INFO    Batch   591/591  rows 605,141/605,141
+2026-06-24 15:17:26,139  INFO    State matrix shape: (605141, 128)  dtype=float32
+2026-06-24 15:17:26,139  INFO  [STEP 4] Mapping string labels to optimal action integers ...
+2026-06-24 15:17:26,514  INFO    Action 0 (Block IP              ):  575,027 rows
+2026-06-24 15:17:26,515  INFO    Action 1 (Revoke Credentials    ):   19,570 rows
+2026-06-24 15:17:26,517  INFO    Action 2 (Isolate Server        ):    5,508 rows
+2026-06-24 15:17:26,518  INFO    Action 3 (Kill Process          ):        0 rows
+2026-06-24 15:17:26,520  INFO    Action 4 (Monitor               ):    5,036 rows
+2026-06-24 15:17:26,520  INFO  [STEP 5] Stratified 70 / 15 / 15 split ...
+2026-06-24 15:17:27,251  INFO    train: 423,598 rows
+2026-06-24 15:17:27,252  INFO    val:  90,771 rows
+2026-06-24 15:17:27,252  INFO    test:  90,772 rows
+2026-06-24 15:17:27,451  INFO  [STEP 6] Saving arrays to data/processed/ ...
+2026-06-24 15:17:28,002  INFO    train: states=(423598, 128)  actions=(423598,)  labels=(423598,)
+2026-06-24 15:17:28,042  INFO    val  : states=(90771, 128)  actions=(90771,)  labels=(90771,)
+2026-06-24 15:17:28,091  INFO    test : states=(90772, 128)  actions=(90772,)  labels=(90772,)
+2026-06-24 15:17:28,091  INFO    dqn_states          : (605141, 128)
+2026-06-24 15:17:28,091  INFO    dqn_optimal_actions : (605141,)
+2026-06-24 15:17:28,092  INFO    dqn_labels_str      : (605141,)
+2026-06-24 15:17:28,092  INFO  
+2026-06-24 15:17:28,092  INFO  ✓  build_dqn_environment.py complete.
+2026-06-24 15:17:28,092  INFO     State dimension : 128  (115 + 1 + 11 + 1)
+2026-06-24 15:17:28,092  INFO     Total rows      : 605,141
+2026-06-24 15:17:28,093  INFO     DQN splits      : 423,598 train | 90,771 val | 90,772 test
+2026-06-24 15:17:28,093  INFO     Next step: python training/train_dqn.py
