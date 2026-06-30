@@ -1307,6 +1307,8 @@ project/
 │       └── attack_class_counts.json
 ├── simulator/               # CICIDS2017 replay simulator (demo infrastructure)
 │   ├── replay_simulator.py  # streams CSV rows to /predict as if live traffic
+│   ├── streamlit_app.py     # interactive Streamlit UI to manually inject specific
+│   │                        #   attack types into the backend for testing/debugging
 │   └── README.md            # usage: --rate, --benign-ratio, --host flags
 ├── notebooks/               # Jupyter notebooks for EDA
 ├── training/
@@ -1395,9 +1397,14 @@ cd frontend/incident-dashboard && npm install && npm run dev
 #    --rate: flows per second | --benign-ratio: fraction of benign rows (0.0–1.0)
 #    NOTE: backend must be running before starting the simulator
 python simulator/replay_simulator.py --rate 1 --benign-ratio 0.8
+
+# 10. (Optional) Launch the interactive Streamlit simulator UI
+#     Lets you manually select an attack type and inject a single real flow
+#     into the backend — useful for testing and debugging specific attack classes
+#     NOTE: install streamlit first if not already: pip install streamlit
+streamlit run simulator/streamlit_app.py
 ```
 
 ---
 
-*README last updated: 23 June 2026 (Architecture extension — Attack-Type NN + DQN remediation pipeline design; combined pipeline TPR 0.7121 → 0.7497)*
-*Next update due: After Attack-Type NN and DQN training results are reviewed*
+*README last updated: 30 June 2026 — Added interactive Streamlit simulator frontend (`simulator/streamlit_app.py`): manually inject specific attack types into the FastAPI backend for targeted testing and debugging.*
