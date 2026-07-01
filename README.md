@@ -1116,6 +1116,95 @@ Both classes now achieve high accuracy against the same target action. The overa
 
 ---
 
+### 📅 1 July 2026 — FastAPI Backend Scaffolding & Refactoring
+
+**Topics covered:**
+- Set up and refactored the complete FastAPI + PostgreSQL backend for the project
+- Designed and enforced clean separation of concerns across the backend package structure
+- Implemented a server-push WebSocket pattern and a multi-model loading system at startup
+
+**Backend package structure finalised (as of today):**
+
+```
+backend/
+├── main.py                         # FastAPI app entrypoint + lifespan startup
+├── inference.py                    # inference logic stubs
+├── schemas.py                      # Pydantic request/response models
+├── __init__.py
+│
+├── db/                             # Database layer
+│   ├── database.py                 # Engine, SessionLocal, check_db_connection()
+│   ├── database_models.py          # SQLAlchemy ORM: Incident table + declarative Base
+│   └── init_db.py                  # get_db() FastAPI dependency + init_db() startup helper
+│
+├── routers/                        # FastAPI route handlers
+│   ├── health_route.py             # GET /health
+│   ├── incident_route.py           # GET /incidents
+│   ├── predict_route.py            # POST /predict
+│   └── connection_route.py         # WS  /ws/connect
+│
+├── websocket/                      # WebSocket infrastructure
+│   └── connection.py               # ConnectionManager class + module-level manager singleton
+│
+└── models/                         # ML model loader
+    └── init_models.py              # load_models() — loads all 4 models at startup
+```
+
+**Key refactors done today:**
+
+| Change | Rationale |
+|---|---|
+| ORM models moved from `database.py` → `database_models.py` | Models file owns the schema; avoids circular imports with `Base` |
+| `get_db()` + `init_db()` moved to `db/init_db.py` | Separates DB connection config from app-level helpers |
+| `ConnectionManager` moved from `routers/websocket.py` → `websocket/connection.py` | Class lives in its own module; `manager` singleton importable everywhere |
+| All routers renamed to `*_route.py` convention | `health_route.py`, `incident_route.py`, `predict_route.py`, `connection_route.py` |
+| WebSocket route `/ws/alerts` → `/ws/connect` | Semantically cleaner — connect endpoint, not an alerts source |
+
+**WebSocket pattern implemented (server-push only):**
+- Client connects to `ws://localhost:8000/ws/connect` and just listens
+- Server voluntarily pushes JSON alert payloads whenever `POST /predict` detects an anomaly
+- Client never needs to send anything — `manager.broadcast(payload)` called from `predict_route.py`
+- Disconnect detected via `WebSocketDisconnect` exception in a background `receive()` loop
+
+**ML model loader (`backend/models/init_models.py`):**
+- Loads all 4 models once at startup via `load_models()` — into module-level variables, never reloaded
+- Each model loads independently — missing file logs a warning, does not crash the server
+
+| Variable | File | Type |
+|---|---|---|
+| `autoencoder` | `models/autoencoder.pt` | PyTorch |
+| `hybrid_classifier` | `models/hybrid_classifier.pkl` | scikit-learn / joblib |
+| `attack_type_nn` | `models/attack_type_nn.pt` | PyTorch |
+| `dqn_agent` | `models/dqn_agent.pt` | PyTorch |
+
+Supporting artefacts also loaded at startup: `scaler.pkl`, `hybrid_label_encoder.pkl`, `attack_type_label_map.json`, `threshold.json`.
+
+**Python concepts reinforced:**
+- `__init__.py` required even in Python 3.3+ for uvicorn/pytest to resolve packages correctly from project root
+- `from __future__ import annotations` defers type-hint evaluation — no runtime cost, avoids forward-reference errors
+- Module-level singletons (e.g. `manager = ConnectionManager()`) are cached by Python's import system — every import gets the same object in memory, so WebSocket state is shared across all routes
+
+**API endpoints as of today:**
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/health` | DB connectivity + model readiness check |
+| `GET` | `/incidents` | Paginated stored incident list |
+| `POST` | `/predict` | Submit a network flow for inference |
+| `WS` | `/ws/connect` | Server-push alert subscription |
+
+**Files created/renamed today:**
+- `backend/db/database_models.py` — ORM models (renamed from `models.py`)
+- `backend/db/init_db.py` — `get_db()` + `init_db()` (extracted from `database.py`)
+- `backend/websocket/connection.py` — `ConnectionManager` class
+- `backend/models/init_models.py` — 4-model startup loader
+- `backend/routers/health_route.py` — renamed from `health.py`
+- `backend/routers/incident_route.py` — renamed from `incidents.py`
+- `backend/routers/predict_route.py` — renamed from `predict.py`
+- `backend/routers/connection_route.py` — renamed from `websocket.py`
+
+---
+
 
 
 ## System Architecture
@@ -1311,19 +1400,32 @@ project/
 │   │                        #   attack types into the backend for testing/debugging
 │   └── README.md            # usage: --rate, --benign-ratio, --host flags
 ├── notebooks/               # Jupyter notebooks for EDA
+├── data_preparation/             # Raw → processed data pipeline
+│   ├── preprocess_benign.py      # Step 1 — benign data → autoencoder training data
+│   ├── preprocess_attack.py      # Step 2 — attack data → DQN environment data
+│   ├── build_hybrid_dataset.py   # Stage 1B data prep — 7-class hybrid dataset
+│   └── build_attack_type_dataset.py  # Stage 2 data prep — 11-class attack-type dataset
 ├── training/
-│   ├── preprocess_benign.py          # Step 1 — benign data → autoencoder training data
-│   ├── preprocess_attack.py          # Step 2 — attack data → DQN environment data
 │   ├── train_autoencoder.py          # Stage 1A — autoencoder training
-│   ├── build_hybrid_dataset.py       # Stage 1B data prep — 7-class hybrid dataset
 │   ├── train_hybrid_classifier.py    # Stage 1B training — XGBoost hybrid classifier
-│   ├── build_attack_type_dataset.py  # Stage 2 data prep — 11-class attack-type dataset
 │   ├── train_attack_type_nn.py       # Stage 2 training — feedforward attack-type NN
 │   ├── build_dqn_environment.py      # Stage 3 data prep — builds full DQN state vectors
 │   │                                 #   (runs AE + Attack-Type NN forward passes)
 │   ├── dqn_env.py                    # Stage 3 Gymnasium env — RemediationEnv (single-step)
 │   └── train_dqn.py                  # Stage 3 training — DQN consumes [features | AE error
 │                                     #   | attack-type NN softmax probs | confidence]
+├── evaluation/                   # Model evaluation & diagnosis scripts
+│   ├── evaluate_combined_pipeline.py
+│   ├── eval_threshold.py
+│   ├── analyze_feature_errors.py
+│   ├── compare_models.py
+│   ├── diagnose_dos_hulk.py
+│   ├── diagnose_hulk_ftp_confusion.py
+│   └── diagnose_nn_confusions.py
+├── tests/
+│   ├── test_autoencoder.py
+│   ├── check_gpu.py
+│   └── modelweight.py
 ├── models/                  # saved artefacts (output of training)
 │   ├── autoencoder.pt          # ~90 KB  (state_dict, 115→80→48→24→48→80→115)
 │   ├── hybrid_classifier.pkl   # ~2.5 MB (XGBoost, 7-class)
@@ -1337,11 +1439,29 @@ project/
 │   ├── threshold.json          # <1 KB   (95th-percentile val MSE)
 │   └── training_history.json   # autoencoder train/val loss per epoch
 ├── backend/
-│   ├── main.py              # FastAPI app + WebSocket
-│   ├── inference.py         # model inference logic
-│   ├── action_executor.py   # dummy action executor (simulated network state)
-│   ├── database.py          # SQLAlchemy + PostgreSQL
-│   └── schemas.py           # Pydantic models
+│   ├── main.py                     # FastAPI app entrypoint + lifespan startup
+│   ├── inference.py                # inference logic stubs
+│   ├── schemas.py                  # Pydantic request/response models
+│   ├── __init__.py
+│   ├── db/                         # Database layer
+│   │   ├── database.py             # Engine, SessionLocal, check_db_connection()
+│   │   ├── database_models.py      # SQLAlchemy ORM: Incident table + Base
+│   │   └── init_db.py              # get_db() dependency + init_db() startup helper
+│   ├── routers/                    # FastAPI route handlers
+│   │   ├── health_route.py         # GET /health
+│   │   ├── incident_route.py       # GET /incidents
+│   │   ├── predict_route.py        # POST /predict
+│   │   └── connection_route.py     # WS  /ws/connect
+│   ├── websocket/                  # WebSocket infrastructure
+│   │   └── connection.py           # ConnectionManager class + manager singleton
+│   ├── models/                     # ML model loader
+│   │   └── init_models.py          # load_models() — loads all 4 models at startup
+│   ├── anomaly_classifier/
+│   │   └── anomaly_detection.py
+│   ├── attacktype_classifier/
+│   │   └── attack_identifier.py
+│   └── dqn_agent/
+│       └── dqn_suggestion.py
 ├── frontend/
 │   └── incident-dashboard/  # Vite+React 19+TypeScript+Tailwind v4
 │       ├── src/
@@ -1407,4 +1527,4 @@ streamlit run simulator/streamlit_app.py
 
 ---
 
-*README last updated: 30 June 2026 — Added interactive Streamlit simulator frontend (`simulator/streamlit_app.py`): manually inject specific attack types into the FastAPI backend for targeted testing and debugging.*
+*README last updated: 1 July 2026 — Backend refactored into `db/`, `routers/`, `websocket/`, and `models/` sub-packages; all routers renamed to `*_route.py`; `ConnectionManager` extracted to `websocket/connection.py`; 4-model startup loader implemented in `backend/models/init_models.py`; Project Structure section updated to match actual directory layout.*
