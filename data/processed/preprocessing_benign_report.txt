@@ -4,8 +4,7 @@ BENIGN DATA PREPROCESSING REPORT
 =================================================================
 
 Raw rows loaded      : 1,786,239
-After inf/NaN drop   : 1,697,919  (approx; dedup follows)
-After dedup          : 1,697,919
+After dedup + clean  : 1,697,919
 Rows removed (total) : 88,320
 Feature columns      : 115
 

@@ -1,83 +1,83 @@
-2026-06-17 16:09:24,604  INFO  =================================================================
-2026-06-17 16:09:24,605  INFO  BENIGN DATA PREPROCESSING PIPELINE
-2026-06-17 16:09:24,605  INFO  (Produces training data for the Autoencoder)
-2026-06-17 16:09:24,605  INFO  =================================================================
-2026-06-17 16:09:24,605  INFO    Input  : E:\IISC\IISC_RESEARCH_INTERNSHIP\data\cicids2017\benign_data
-2026-06-17 16:09:24,605  INFO    Output : E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed
-2026-06-17 16:09:24,605  INFO    Models : E:\IISC\IISC_RESEARCH_INTERNSHIP\models
-2026-06-17 16:09:24,606  INFO  Found 5 CSV file(s) in 'E:\IISC\IISC_RESEARCH_INTERNSHIP\data\cicids2017\benign_data'
-2026-06-17 16:09:33,716  INFO    Loaded friday_benign.csv                              →    364,102 rows
-2026-06-17 16:09:45,081  INFO    Loaded monday_benign.csv                              →    495,338 rows
-2026-06-17 16:09:47,758  INFO    Loaded thursday_benign.csv                            →    133,770 rows
-2026-06-17 16:09:56,458  INFO    Loaded tuesday_benign.csv                             →    395,976 rows
-2026-06-17 16:10:05,133  INFO    Loaded wednesday_benign.csv                           →    397,053 rows
-2026-06-17 16:10:06,423  INFO  
+2026-07-01 16:57:20,284  INFO  =================================================================
+2026-07-01 16:57:20,284  INFO  BENIGN DATA PREPROCESSING PIPELINE
+2026-07-01 16:57:20,284  INFO  (Produces training data for the Autoencoder)
+2026-07-01 16:57:20,284  INFO  =================================================================
+2026-07-01 16:57:20,284  INFO    Input  : E:\IISC\IISC_RESEARCH_INTERNSHIP\data\cicids2017\benign_data
+2026-07-01 16:57:20,284  INFO    Output : E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed
+2026-07-01 16:57:20,285  INFO    Models : E:\IISC\IISC_RESEARCH_INTERNSHIP\models
+2026-07-01 16:57:20,285  INFO  Found 5 CSV file(s) in 'E:\IISC\IISC_RESEARCH_INTERNSHIP\data\cicids2017\benign_data'
+2026-07-01 16:57:30,510  INFO    Loaded friday_benign.csv                              →    364,102 rows
+2026-07-01 16:57:43,114  INFO    Loaded monday_benign.csv                              →    495,338 rows
+2026-07-01 16:57:46,036  INFO    Loaded thursday_benign.csv                            →    133,770 rows
+2026-07-01 16:57:55,979  INFO    Loaded tuesday_benign.csv                             →    395,976 rows
+2026-07-01 16:58:05,511  INFO    Loaded wednesday_benign.csv                           →    397,053 rows
+2026-07-01 16:58:06,211  INFO  
 Combined benign dataset shape: (1786239, 122)
-2026-06-17 16:10:13,342  INFO  
+2026-07-01 16:58:06,448  INFO  
 [STEP 2] Column names stripped of whitespace.
-2026-06-17 16:10:13,349  INFO           Total columns after fix: 122
-2026-06-17 16:10:13,381  INFO  
+2026-07-01 16:58:06,449  INFO           Total columns after fix: 122
+2026-07-01 16:58:06,472  INFO  
 [STEP 3] Dropped identifier columns  : ['flow_id', 'timestamp', 'src_ip', 'dst_ip', 'src_port', 'dst_port']
-2026-06-17 16:10:13,382  INFO           Dropped label columns (if any): ['label']
-2026-06-17 16:10:13,382  INFO           Shape after drop              : (1786239, 115)
-2026-06-17 16:10:15,832  INFO  
+2026-07-01 16:58:06,473  INFO           Dropped label columns (if any): ['label']
+2026-07-01 16:58:06,473  INFO           Shape after drop              : (1786239, 115)
+2026-07-01 16:58:09,239  INFO  
 [STEP 4] Inf values found   : 0
-2026-06-17 16:10:15,833  INFO           NaN values found   : 0
-2026-06-17 16:10:15,833  INFO           Rows removed       : 0  (1,786,239 → 1,786,239)
-2026-06-17 16:10:28,153  INFO  
+2026-07-01 16:58:09,239  INFO           NaN values found   : 0
+2026-07-01 16:58:09,240  INFO           Rows removed       : 0  (1,786,239 → 1,786,239)
+2026-07-01 16:58:23,595  INFO  
 [STEP 5] Duplicates removed: 88,320  (1,786,239 → 1,697,919 rows)
-2026-06-17 16:10:28,357  INFO    Clipped  49,062 negatives in 'active_max'
-2026-06-17 16:10:28,379  INFO    Clipped  49,062 negatives in 'active_mean'
-2026-06-17 16:10:28,400  INFO    Clipped  49,062 negatives in 'active_min'
-2026-06-17 16:10:28,422  INFO    Clipped   2,103 negatives in 'packet_IAT_min'
-2026-06-17 16:10:28,448  INFO    Clipped      10 negatives in 'packet_IAT_max'
-2026-06-17 16:10:28,474  INFO    Clipped      10 negatives in 'packet_IAT_total'
-2026-06-17 16:10:28,505  INFO    Clipped      10 negatives in 'packets_IAT_mean'
-2026-06-17 16:10:28,527  INFO    Clipped      11 negatives in 'bwd_packets_IAT_min'
-2026-06-17 16:10:28,549  INFO    Clipped      10 negatives in 'bwd_packets_IAT_max'
-2026-06-17 16:10:28,573  INFO    Clipped      10 negatives in 'bwd_packets_IAT_mean'
-2026-06-17 16:10:28,596  INFO    Clipped      10 negatives in 'bwd_packets_IAT_total'
-2026-06-17 16:10:28,620  INFO    Clipped      10 negatives in 'duration'
-2026-06-17 16:10:28,647  INFO    Clipped      10 negatives in 'bwd_packets_rate'
-2026-06-17 16:10:28,670  INFO    Clipped      10 negatives in 'packets_rate'
-2026-06-17 16:10:28,670  INFO  
+2026-07-01 16:58:23,778  INFO    Clipped  49,062 negatives in 'active_max'
+2026-07-01 16:58:23,804  INFO    Clipped  49,062 negatives in 'active_mean'
+2026-07-01 16:58:23,823  INFO    Clipped  49,062 negatives in 'active_min'
+2026-07-01 16:58:23,840  INFO    Clipped   2,103 negatives in 'packet_IAT_min'
+2026-07-01 16:58:23,857  INFO    Clipped      10 negatives in 'packet_IAT_max'
+2026-07-01 16:58:23,876  INFO    Clipped      10 negatives in 'packet_IAT_total'
+2026-07-01 16:58:23,894  INFO    Clipped      10 negatives in 'packets_IAT_mean'
+2026-07-01 16:58:23,912  INFO    Clipped      11 negatives in 'bwd_packets_IAT_min'
+2026-07-01 16:58:23,931  INFO    Clipped      10 negatives in 'bwd_packets_IAT_max'
+2026-07-01 16:58:23,950  INFO    Clipped      10 negatives in 'bwd_packets_IAT_mean'
+2026-07-01 16:58:23,970  INFO    Clipped      10 negatives in 'bwd_packets_IAT_total'
+2026-07-01 16:58:23,989  INFO    Clipped      10 negatives in 'duration'
+2026-07-01 16:58:24,009  INFO    Clipped      10 negatives in 'bwd_packets_rate'
+2026-07-01 16:58:24,025  INFO    Clipped      10 negatives in 'packets_rate'
+2026-07-01 16:58:24,025  INFO  
 [STEP 6] Negative value clipping complete. Total cells clipped: 149,390
-2026-06-17 16:10:29,163  INFO  
+2026-07-01 16:58:24,687  INFO  
 [STEP 7] 'protocol' label-encoded (was string).
-2026-06-17 16:10:29,171  INFO           Feature columns  : 115
-2026-06-17 16:10:29,172  INFO           Converting to float32...
-2026-06-17 16:10:29,172  INFO  
+2026-07-01 16:58:24,716  INFO           Feature columns  : 115
+2026-07-01 16:58:24,717  INFO           Converting to float32...
+2026-07-01 16:58:24,718  INFO  
          Feature list (115 columns): ['protocol', 'duration', 'packets_count', 'fwd_packets_count', 'bwd_packets_count'] ...
-2026-06-17 16:10:32,392  INFO  
+2026-07-01 16:58:28,217  INFO  
 [STEP 8] Train/Val/Test split (all benign):
-2026-06-17 16:10:32,393  INFO           Train : 1,188,543 rows  (70.0%)
-2026-06-17 16:10:32,393  INFO           Val   :   254,688 rows  (15.0%)
-2026-06-17 16:10:32,393  INFO           Test  :   254,688 rows  (15.0%)
-2026-06-17 16:10:37,173  INFO  
+2026-07-01 16:58:28,217  INFO           Train : 1,188,543 rows  (70.0%)
+2026-07-01 16:58:28,218  INFO           Val   :   254,688 rows  (15.0%)
+2026-07-01 16:58:28,218  INFO           Test  :   254,688 rows  (15.0%)
+2026-07-01 16:58:33,597  INFO  
 [STEP 9] MinMaxScaler fit on training set.
-2026-06-17 16:10:37,183  INFO           Feature min (first 5): [0. 0. 1. 0. 0.]
-2026-06-17 16:10:37,185  INFO           Feature max (first 5): [1.00000000e+00 3.01545916e+04 2.45813100e+06 1.04634000e+06
+2026-07-01 16:58:33,624  INFO           Feature min (first 5): [0. 0. 1. 0. 0.]
+2026-07-01 16:58:33,628  INFO           Feature max (first 5): [1.00000000e+00 3.01545916e+04 2.45813100e+06 1.04634000e+06
  1.41179100e+06]
-2026-06-17 16:10:37,185  INFO           Scaler saved → E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\scaler.pkl
-2026-06-17 16:10:37,186  INFO           Scaler saved → E:\IISC\IISC_RESEARCH_INTERNSHIP\models\scaler.pkl
-2026-06-17 16:10:37,186  INFO  
+2026-07-01 16:58:33,628  INFO           Scaler saved → E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\scaler.pkl
+2026-07-01 16:58:33,629  INFO           Scaler saved → E:\IISC\IISC_RESEARCH_INTERNSHIP\models\scaler.pkl
+2026-07-01 16:58:33,629  INFO  
 [STEP 10] Sanity checks:
-2026-06-17 16:10:37,399  INFO    ✅ X_train          shape=(1188543, 115)  NaN=False  Inf=False  range=[0.0000, 1.0000]
-2026-06-17 16:10:37,445  INFO    ❌ X_val            shape=(254688, 115)  NaN=False  Inf=False  range=[0.0000, 1.2000]
-2026-06-17 16:10:37,496  INFO    ❌ X_test           shape=(254688, 115)  NaN=False  Inf=False  range=[0.0000, 2.0941]
-2026-06-17 16:10:38,179  INFO    Saved X_train_benign        shape=(1188543, 115)  dtype=float32  →  E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\X_train_benign.npy
-2026-06-17 16:10:38,309  INFO    Saved X_val_benign          shape=(254688, 115)  dtype=float32  →  E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\X_val_benign.npy
-2026-06-17 16:10:38,425  INFO    Saved X_test_benign         shape=(254688, 115)  dtype=float32  →  E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\X_test_benign.npy
-2026-06-17 16:10:38,430  INFO    Saved feature_names.json  (115 features)  →  E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\feature_names.json
-2026-06-17 16:10:38,431  INFO  
+2026-07-01 16:58:33,858  INFO    ✅ X_train          shape=(1188543, 115)  NaN=False  Inf=False  range=[0.0000, 1.0000]
+2026-07-01 16:58:34,080  INFO    ❌ X_val            shape=(254688, 115)  NaN=False  Inf=False  range=[0.0000, 1.2000]
+2026-07-01 16:58:34,156  INFO    ❌ X_test           shape=(254688, 115)  NaN=False  Inf=False  range=[0.0000, 2.0941]
+2026-07-01 16:58:35,902  INFO    Saved X_train_benign        shape=(1188543, 115)  dtype=float32  →  E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\X_train_benign.npy
+2026-07-01 16:58:36,180  INFO    Saved X_val_benign          shape=(254688, 115)  dtype=float32  →  E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\X_val_benign.npy
+2026-07-01 16:58:36,509  INFO    Saved X_test_benign         shape=(254688, 115)  dtype=float32  →  E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\X_test_benign.npy
+2026-07-01 16:58:36,519  INFO    Saved feature_names.json  (115 features)  →  E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\feature_names.json
+2026-07-01 16:58:36,519  INFO  
 [STEP 11] All outputs saved to 'E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed'
-2026-06-17 16:10:38,433  INFO  
+2026-07-01 16:58:36,523  INFO  
 [STEP 12] Report saved → E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\preprocessing_benign_report.txt
-2026-06-17 16:10:38,433  INFO  
+2026-07-01 16:58:36,523  INFO  
 ✅  Benign preprocessing complete!
-2026-06-17 16:10:38,434  INFO      Feature dimensions  : 115
-2026-06-17 16:10:38,434  INFO      Train samples       : 1,188,543
-2026-06-17 16:10:38,434  INFO      Val   samples       : 254,688
-2026-06-17 16:10:38,435  INFO      Test  samples       : 254,688
-2026-06-17 16:10:38,435  INFO  
+2026-07-01 16:58:36,524  INFO      Feature dimensions  : 115
+2026-07-01 16:58:36,524  INFO      Train samples       : 1,188,543
+2026-07-01 16:58:36,524  INFO      Val   samples       : 254,688
+2026-07-01 16:58:36,524  INFO      Test  samples       : 254,688
+2026-07-01 16:58:36,524  INFO  
     → Now run: python training/preprocess_attack.py

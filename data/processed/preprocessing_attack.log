@@ -1,104 +1,104 @@
-2026-06-17 16:14:17,887  INFO  =================================================================
-2026-06-17 16:14:17,887  INFO  ATTACK DATA PREPROCESSING PIPELINE
-2026-06-17 16:14:17,887  INFO  (Produces environment states for DQN Agent Training)
-2026-06-17 16:14:17,888  INFO  =================================================================
-2026-06-17 16:14:17,888  INFO    Input  : E:\IISC\IISC_RESEARCH_INTERNSHIP\data\cicids2017\attack_data
-2026-06-17 16:14:17,888  INFO    Scaler : E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\scaler.pkl  (from preprocess_benign.py)
-2026-06-17 16:14:17,888  INFO    Output : E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed
-2026-06-17 16:14:17,889  INFO    Loaded 115 feature names from feature_names.json
-2026-06-17 16:14:17,889  INFO  Found 13 attack CSV file(s) in 'E:\IISC\IISC_RESEARCH_INTERNSHIP\data\cicids2017\attack_data'
-2026-06-17 16:14:18,000  INFO    Loaded botnet_ares.csv                                →      5,508 rows  |  labels: ['Botnet_ARES']
-2026-06-17 16:14:20,678  INFO    Loaded ddos_loit.csv                                  →     95,733 rows  |  labels: ['DDoS_LOIT']
-2026-06-17 16:14:20,877  INFO    Loaded dos_golden_eye.csv                             →      8,364 rows  |  labels: ['DoS_GoldenEye']
-2026-06-17 16:14:29,413  INFO    Loaded dos_hulk.csv                                   →    349,240 rows  |  labels: ['DoS_Hulk']
-2026-06-17 16:14:29,561  INFO    Loaded dos_slowhttptest.csv                           →      6,860 rows  |  labels: ['DoS_Slowhttptest']
-2026-06-17 16:14:29,652  INFO    Loaded dos_slowloris.csv                              →      5,177 rows  |  labels: ['DoS_Slowloris']
-2026-06-17 16:14:29,796  INFO    Loaded ftp_patator.csv                                →      9,531 rows  |  labels: ['FTP-Patator']
-2026-06-17 16:14:29,800  INFO    Loaded heartbleed.csv                                 →         12 rows  |  labels: ['Heartbleed']
-2026-06-17 16:14:33,326  INFO    Loaded portscan.csv                                   →    161,323 rows  |  labels: ['Port_Scan']
-2026-06-17 16:14:33,420  INFO    Loaded ssh_patator-new.csv                            →      5,949 rows  |  labels: ['SSH-Patator']
-2026-06-17 16:14:33,464  INFO    Loaded web_brute_force.csv                            →      2,734 rows  |  labels: ['Web_Brute_Force']
-2026-06-17 16:14:33,469  INFO    Loaded web_sql_injection.csv                          →         24 rows  |  labels: ['Web_SQL_Injection']
-2026-06-17 16:14:33,492  INFO    Loaded web_xss.csv                                    →      1,358 rows  |  labels: ['Web_XSS']
-2026-06-17 16:14:33,690  INFO  
+2026-07-01 16:59:08,726  INFO  =================================================================
+2026-07-01 16:59:08,727  INFO  ATTACK DATA PREPROCESSING PIPELINE
+2026-07-01 16:59:08,727  INFO  (Produces environment states for DQN Agent Training)
+2026-07-01 16:59:08,727  INFO  =================================================================
+2026-07-01 16:59:08,727  INFO    Input  : E:\IISC\IISC_RESEARCH_INTERNSHIP\data\cicids2017\attack_data
+2026-07-01 16:59:08,727  INFO    Scaler : E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\scaler.pkl  (from preprocess_benign.py)
+2026-07-01 16:59:08,728  INFO    Output : E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed
+2026-07-01 16:59:08,741  INFO    Loaded 115 feature names from feature_names.json
+2026-07-01 16:59:08,742  INFO  Found 13 attack CSV file(s) in 'E:\IISC\IISC_RESEARCH_INTERNSHIP\data\cicids2017\attack_data'
+2026-07-01 16:59:08,866  INFO    Loaded botnet_ares.csv                                →      5,508 rows  |  labels: ['Botnet_ARES']
+2026-07-01 16:59:11,253  INFO    Loaded ddos_loit.csv                                  →     95,733 rows  |  labels: ['DDoS_LOIT']
+2026-07-01 16:59:11,423  INFO    Loaded dos_golden_eye.csv                             →      8,364 rows  |  labels: ['DoS_GoldenEye']
+2026-07-01 16:59:19,541  INFO    Loaded dos_hulk.csv                                   →    349,240 rows  |  labels: ['DoS_Hulk']
+2026-07-01 16:59:19,667  INFO    Loaded dos_slowhttptest.csv                           →      6,860 rows  |  labels: ['DoS_Slowhttptest']
+2026-07-01 16:59:19,757  INFO    Loaded dos_slowloris.csv                              →      5,177 rows  |  labels: ['DoS_Slowloris']
+2026-07-01 16:59:19,904  INFO    Loaded ftp_patator.csv                                →      9,531 rows  |  labels: ['FTP-Patator']
+2026-07-01 16:59:19,921  INFO    Loaded heartbleed.csv                                 →         12 rows  |  labels: ['Heartbleed']
+2026-07-01 16:59:22,701  INFO    Loaded portscan.csv                                   →    161,323 rows  |  labels: ['Port_Scan']
+2026-07-01 16:59:22,818  INFO    Loaded ssh_patator-new.csv                            →      5,949 rows  |  labels: ['SSH-Patator']
+2026-07-01 16:59:22,865  INFO    Loaded web_brute_force.csv                            →      2,734 rows  |  labels: ['Web_Brute_Force']
+2026-07-01 16:59:22,879  INFO    Loaded web_sql_injection.csv                          →         24 rows  |  labels: ['Web_SQL_Injection']
+2026-07-01 16:59:22,914  INFO    Loaded web_xss.csv                                    →      1,358 rows  |  labels: ['Web_XSS']
+2026-07-01 16:59:23,061  INFO  
 Combined attack dataset shape: (651813, 122)
-2026-06-17 16:14:34,579  INFO  
+2026-07-01 16:59:23,678  INFO  
 [STEP 2] Column names stripped. Total columns: 122
-2026-06-17 16:14:34,580  INFO  
+2026-07-01 16:59:23,679  INFO  
 [STEP 3] Label column found: 'label'
-2026-06-17 16:14:34,773  INFO           Unique attack labels: ['Botnet_ARES', 'DDoS_LOIT', 'DoS_GoldenEye', 'DoS_Hulk', 'DoS_Slowhttptest', 'DoS_Slowloris', 'FTP-Patator', 'Heartbleed', 'Port_Scan', 'SSH-Patator', 'Web_Brute_Force', 'Web_SQL_Injection', 'Web_XSS']
-2026-06-17 16:14:34,778  INFO           Dropped identifier columns: ['flow_id', 'timestamp', 'src_ip', 'dst_ip', 'src_port', 'dst_port']
-2026-06-17 16:14:34,778  INFO           Shape after drop           : (651813, 115)
-2026-06-17 16:14:35,254  INFO  
+2026-07-01 16:59:24,275  INFO           Unique attack labels: ['Botnet_ARES', 'DDoS_LOIT', 'DoS_GoldenEye', 'DoS_Hulk', 'DoS_Slowhttptest', 'DoS_Slowloris', 'FTP-Patator', 'Heartbleed', 'Port_Scan', 'SSH-Patator', 'Web_Brute_Force', 'Web_SQL_Injection', 'Web_XSS']
+2026-07-01 16:59:24,280  INFO           Dropped identifier columns: ['flow_id', 'timestamp', 'src_ip', 'dst_ip', 'src_port', 'dst_port']
+2026-07-01 16:59:24,280  INFO           Shape after drop           : (651813, 115)
+2026-07-01 16:59:24,611  INFO  
 [STEP 4] Inf values found   : 0
-2026-06-17 16:14:35,254  INFO           NaN values found   : 0
-2026-06-17 16:14:35,254  INFO           Rows removed       : 0  (651,813 → 651,813)
-2026-06-17 16:14:39,385  INFO  
+2026-07-01 16:59:24,611  INFO           NaN values found   : 0
+2026-07-01 16:59:24,611  INFO           Rows removed       : 0  (651,813 → 651,813)
+2026-07-01 16:59:28,093  INFO  
 [STEP 5] Duplicates removed: 51,672  (651,813 → 600,141 rows)
-2026-06-17 16:14:39,498  INFO    Clipped   1,948 negatives in 'active_max'
-2026-06-17 16:14:39,506  INFO    Clipped   1,948 negatives in 'active_mean'
-2026-06-17 16:14:39,523  INFO    Clipped   1,948 negatives in 'active_min'
-2026-06-17 16:14:39,533  INFO    Clipped     242 negatives in 'packet_IAT_min'
-2026-06-17 16:14:39,545  INFO    Clipped      95 negatives in 'bwd_packets_IAT_min'
-2026-06-17 16:14:39,556  INFO  
+2026-07-01 16:59:28,162  INFO    Clipped   1,948 negatives in 'active_max'
+2026-07-01 16:59:28,169  INFO    Clipped   1,948 negatives in 'active_mean'
+2026-07-01 16:59:28,175  INFO    Clipped   1,948 negatives in 'active_min'
+2026-07-01 16:59:28,183  INFO    Clipped     242 negatives in 'packet_IAT_min'
+2026-07-01 16:59:28,192  INFO    Clipped      95 negatives in 'bwd_packets_IAT_min'
+2026-07-01 16:59:28,199  INFO  
 [STEP 6] Negative value clipping complete. Total cells clipped: 6,181
-2026-06-17 16:14:39,791  INFO  
+2026-07-01 16:59:28,382  INFO  
 [STEP 7] 'protocol' label-encoded (was string).
-2026-06-17 16:14:39,795  INFO           Feature columns  : 115
-2026-06-17 16:14:39,877  INFO  
+2026-07-01 16:59:28,394  INFO           Feature columns  : 115
+2026-07-01 16:59:28,524  INFO  
 [STEP 8] Attack label encoding:
-2026-06-17 16:14:39,908  INFO           Botnet_ARES                         →  0  (    5,508 rows)
-2026-06-17 16:14:39,941  INFO           DDoS_LOIT                           →  1  (   95,729 rows)
-2026-06-17 16:14:39,974  INFO           DoS_GoldenEye                       →  2  (    8,363 rows)
-2026-06-17 16:14:40,020  INFO           DoS_Hulk                            →  3  (  297,642 rows)
-2026-06-17 16:14:40,068  INFO           DoS_Slowhttptest                    →  4  (    6,856 rows)
-2026-06-17 16:14:40,106  INFO           DoS_Slowloris                       →  5  (    5,122 rows)
-2026-06-17 16:14:40,134  INFO           FTP-Patator                         →  6  (    9,531 rows)
-2026-06-17 16:14:40,168  INFO           Heartbleed                          →  7  (       12 rows)
-2026-06-17 16:14:40,196  INFO           Port_Scan                           →  8  (  161,315 rows)
-2026-06-17 16:14:40,231  INFO           SSH-Patator                         →  9  (    5,949 rows)
-2026-06-17 16:14:40,260  INFO           Web_Brute_Force                     → 10  (    2,733 rows)
-2026-06-17 16:14:40,292  INFO           Web_SQL_Injection                   → 11  (       24 rows)
-2026-06-17 16:14:40,320  INFO           Web_XSS                             → 12  (    1,357 rows)
-2026-06-17 16:14:40,321  INFO           Label map saved → E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\attack_label_map.json
-2026-06-17 16:14:40,323  INFO  
+2026-07-01 16:59:28,533  INFO           Botnet_ARES                         →  0  (    5,508 rows)
+2026-07-01 16:59:28,537  INFO           DDoS_LOIT                           →  1  (   95,729 rows)
+2026-07-01 16:59:28,541  INFO           DoS_GoldenEye                       →  2  (    8,363 rows)
+2026-07-01 16:59:28,547  INFO           DoS_Hulk                            →  3  (  297,642 rows)
+2026-07-01 16:59:28,552  INFO           DoS_Slowhttptest                    →  4  (    6,856 rows)
+2026-07-01 16:59:28,558  INFO           DoS_Slowloris                       →  5  (    5,122 rows)
+2026-07-01 16:59:28,562  INFO           FTP-Patator                         →  6  (    9,531 rows)
+2026-07-01 16:59:28,567  INFO           Heartbleed                          →  7  (       12 rows)
+2026-07-01 16:59:28,572  INFO           Port_Scan                           →  8  (  161,315 rows)
+2026-07-01 16:59:28,577  INFO           SSH-Patator                         →  9  (    5,949 rows)
+2026-07-01 16:59:28,581  INFO           Web_Brute_Force                     → 10  (    2,733 rows)
+2026-07-01 16:59:28,586  INFO           Web_SQL_Injection                   → 11  (       24 rows)
+2026-07-01 16:59:28,590  INFO           Web_XSS                             → 12  (    1,357 rows)
+2026-07-01 16:59:28,590  INFO           Label map saved → E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\attack_label_map.json
+2026-07-01 16:59:28,616  INFO  
 [STEP 9] Loaded scaler from: E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\scaler.pkl
-2026-06-17 16:14:40,324  INFO           Aligned to 115 benign feature columns.
-2026-06-17 16:14:41,180  INFO           Normalized attack data  shape: (600141, 115)
-2026-06-17 16:14:41,240  INFO           Value range after scaling     : [0.0000, 2.5229]
-2026-06-17 16:14:41,240  INFO           (values slightly outside [0,1] are expected for attack data)
-2026-06-17 16:14:41,412  INFO  
+2026-07-01 16:59:28,617  INFO           Aligned to 115 benign feature columns.
+2026-07-01 16:59:29,328  INFO           Normalized attack data  shape: (600141, 115)
+2026-07-01 16:59:29,382  INFO           Value range after scaling     : [0.0000, 2.5229]
+2026-07-01 16:59:29,382  INFO           (values slightly outside [0,1] are expected for attack data)
+2026-07-01 16:59:29,513  INFO  
 [STEP 10] Sanity checks:
-2026-06-17 16:14:41,412  INFO    ✅ X_attacks  shape=(600141, 115)  NaN=False  Inf=False  range=[0.0000, 2.5229]
-2026-06-17 16:14:41,433  INFO    ✅ y_attacks  shape=(600141,)  unique classes=13  range=[0, 12]
-2026-06-17 16:14:41,732  INFO    Saved X_attacks.npy      shape=(600141, 115)  dtype=float32  →  E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\X_attacks.npy
-2026-06-17 16:14:41,736  INFO    Saved y_attacks.npy      shape=(600141,)   dtype=int64   →  E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\y_attacks.npy
-2026-06-17 16:14:41,763  INFO    Saved y_attacks_str.npy  shape=(600141,)   →  E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\y_attacks_str.npy
-2026-06-17 16:14:41,837  INFO    Saved attack_class_counts.json                  →  E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\attack_class_counts.json
-2026-06-17 16:14:41,838  INFO  
+2026-07-01 16:59:29,514  INFO    ✅ X_attacks  shape=(600141, 115)  NaN=False  Inf=False  range=[0.0000, 2.5229]
+2026-07-01 16:59:29,522  INFO    ✅ y_attacks  shape=(600141,)  unique classes=13  range=[0, 12]
+2026-07-01 16:59:30,104  INFO    Saved X_attacks.npy      shape=(600141, 115)  dtype=float32  →  E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\X_attacks.npy
+2026-07-01 16:59:30,107  INFO    Saved y_attacks.npy      shape=(600141,)   dtype=int64   →  E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\y_attacks.npy
+2026-07-01 16:59:30,274  INFO    Saved y_attacks_str.npy  shape=(600141,)   →  E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\y_attacks_str.npy
+2026-07-01 16:59:30,361  INFO    Saved attack_class_counts.json                  →  E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\attack_class_counts.json
+2026-07-01 16:59:30,361  INFO  
 [STEP 11] All outputs saved to 'E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed'
-2026-06-17 16:14:41,901  INFO  
+2026-07-01 16:59:30,482  INFO  
 [STEP 12] Report saved → E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\preprocessing_attack_report.txt
-2026-06-17 16:14:41,969  INFO  
+2026-07-01 16:59:30,566  INFO  
 ✅  Attack preprocessing complete!
-2026-06-17 16:14:41,970  INFO      Feature dimensions   : 115
-2026-06-17 16:14:41,970  INFO      Total attack samples : 600,141
-2026-06-17 16:14:41,970  INFO      Attack types         : 13
-2026-06-17 16:14:41,970  INFO  
+2026-07-01 16:59:30,566  INFO      Feature dimensions   : 115
+2026-07-01 16:59:30,567  INFO      Total attack samples : 600,141
+2026-07-01 16:59:30,567  INFO      Attack types         : 13
+2026-07-01 16:59:30,567  INFO  
     Attack sample counts:
-2026-06-17 16:14:41,971  INFO        DoS_Hulk                           :   297,642
-2026-06-17 16:14:41,971  INFO        Port_Scan                          :   161,315
-2026-06-17 16:14:41,971  INFO        DDoS_LOIT                          :    95,729
-2026-06-17 16:14:41,971  INFO        FTP-Patator                        :     9,531
-2026-06-17 16:14:41,971  INFO        DoS_GoldenEye                      :     8,363
-2026-06-17 16:14:41,971  INFO        DoS_Slowhttptest                   :     6,856
-2026-06-17 16:14:41,972  INFO        SSH-Patator                        :     5,949
-2026-06-17 16:14:41,972  INFO        Botnet_ARES                        :     5,508
-2026-06-17 16:14:41,972  INFO        DoS_Slowloris                      :     5,122
-2026-06-17 16:14:41,972  INFO        Web_Brute_Force                    :     2,733
-2026-06-17 16:14:41,972  INFO        Web_XSS                            :     1,357
-2026-06-17 16:14:41,972  INFO        Web_SQL_Injection                  :        24
-2026-06-17 16:14:41,973  INFO        Heartbleed                         :        12
-2026-06-17 16:14:41,973  INFO  
+2026-07-01 16:59:30,567  INFO        DoS_Hulk                           :   297,642
+2026-07-01 16:59:30,567  INFO        Port_Scan                          :   161,315
+2026-07-01 16:59:30,567  INFO        DDoS_LOIT                          :    95,729
+2026-07-01 16:59:30,568  INFO        FTP-Patator                        :     9,531
+2026-07-01 16:59:30,568  INFO        DoS_GoldenEye                      :     8,363
+2026-07-01 16:59:30,568  INFO        DoS_Slowhttptest                   :     6,856
+2026-07-01 16:59:30,568  INFO        SSH-Patator                        :     5,949
+2026-07-01 16:59:30,568  INFO        Botnet_ARES                        :     5,508
+2026-07-01 16:59:30,568  INFO        DoS_Slowloris                      :     5,122
+2026-07-01 16:59:30,568  INFO        Web_Brute_Force                    :     2,733
+2026-07-01 16:59:30,569  INFO        Web_XSS                            :     1,357
+2026-07-01 16:59:30,569  INFO        Web_SQL_Injection                  :        24
+2026-07-01 16:59:30,569  INFO        Heartbleed                         :        12
+2026-07-01 16:59:30,569  INFO  
     → Now run: python training/train_autoencoder.py
-2026-06-17 16:14:41,973  INFO      → Then run: python training/train_dqn.py
+2026-07-01 16:59:30,569  INFO      → Then run: python training/train_dqn.py

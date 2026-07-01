@@ -1,109 +1,109 @@
-2026-06-24 14:21:54,423  INFO  ======================================================================
-2026-06-24 14:21:54,423  INFO  build_attack_type_dataset.py — Stage 2 Data Preparation
-2026-06-24 14:21:54,424  INFO  ======================================================================
-2026-06-24 14:21:54,424  INFO  [STEP 1] Loading X_attacks.npy and y_attacks_str.npy ...
-2026-06-24 14:21:54,886  INFO    X_attacks shape : (600141, 115)  dtype=float32
-2026-06-24 14:21:54,887  INFO    y_attacks shape : (600141,)  dtype=<U17
-2026-06-24 14:21:55,040  INFO    Full class distribution (all 13 classes):
-2026-06-24 14:21:55,040  INFO      DoS_Hulk                         297,642
-2026-06-24 14:21:55,040  INFO      Port_Scan                        161,315
-2026-06-24 14:21:55,040  INFO      DDoS_LOIT                         95,729
-2026-06-24 14:21:55,041  INFO      FTP-Patator                        9,531
-2026-06-24 14:21:55,041  INFO      DoS_GoldenEye                      8,363
-2026-06-24 14:21:55,041  INFO      DoS_Slowhttptest                   6,856
-2026-06-24 14:21:55,041  INFO      SSH-Patator                        5,949
-2026-06-24 14:21:55,041  INFO      Botnet_ARES                        5,508
-2026-06-24 14:21:55,041  INFO      DoS_Slowloris                      5,122
-2026-06-24 14:21:55,042  INFO      Web_Brute_Force                    2,733
-2026-06-24 14:21:55,042  INFO      Web_XSS                            1,357
-2026-06-24 14:21:55,042  INFO      Web_SQL_Injection                     24
-2026-06-24 14:21:55,042  INFO      Heartbleed                            12
-2026-06-24 14:21:55,042  INFO  [STEP 2] Filtering excluded classes ...
-2026-06-24 14:21:55,052  INFO    EXCLUDED: Heartbleed  (n=12) — too few samples for reliable training
-2026-06-24 14:21:55,064  INFO    EXCLUDED: Web_SQL_Injection  (n=24) — too few samples for reliable training
-2026-06-24 14:21:55,309  INFO    Rows after filtering: 600,105  (removed 36)
-2026-06-24 14:21:55,309  INFO  [STEP 3] Encoding string labels to integers ...
-2026-06-24 14:21:55,484  INFO    Number of classes (after exclusions): 11
-2026-06-24 14:21:55,485  INFO    Label encoding:
-2026-06-24 14:21:55,485  INFO       0  →  Botnet_ARES
-2026-06-24 14:21:55,485  INFO       1  →  DDoS_LOIT
-2026-06-24 14:21:55,485  INFO       2  →  DoS_GoldenEye
-2026-06-24 14:21:55,485  INFO       3  →  DoS_Hulk
-2026-06-24 14:21:55,485  INFO       4  →  DoS_Slowhttptest
-2026-06-24 14:21:55,486  INFO       5  →  DoS_Slowloris
-2026-06-24 14:21:55,486  INFO       6  →  FTP-Patator
-2026-06-24 14:21:55,486  INFO       7  →  Port_Scan
-2026-06-24 14:21:55,486  INFO       8  →  SSH-Patator
-2026-06-24 14:21:55,486  INFO       9  →  Web_Brute_Force
-2026-06-24 14:21:55,486  INFO      10  →  Web_XSS
-2026-06-24 14:21:55,487  INFO    Saved label map → E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\attack_type_label_map.json
-2026-06-24 14:21:55,488  INFO    Saved label map → E:\IISC\IISC_RESEARCH_INTERNSHIP\models\attack_type_label_map.json
-2026-06-24 14:21:55,488  INFO  [STEP 4] Stratified 70 / 15 / 15 split ...
-2026-06-24 14:21:56,902  INFO    X_train : (420073, 115)  y_train : (420073,)
-2026-06-24 14:21:56,906  INFO    X_val   : (90016, 115)  y_val   : (90016,)
-2026-06-24 14:21:56,906  INFO    X_test  : (90016, 115)  y_test  : (90016,)
-2026-06-24 14:21:56,914  INFO    Class distribution in train:
-2026-06-24 14:21:56,915  INFO      class  0  →     3,856
-2026-06-24 14:21:56,915  INFO      class  1  →    67,010
-2026-06-24 14:21:56,915  INFO      class  2  →     5,854
-2026-06-24 14:21:56,916  INFO      class  3  →   208,349
-2026-06-24 14:21:56,916  INFO      class  4  →     4,799
-2026-06-24 14:21:56,916  INFO      class  5  →     3,586
-2026-06-24 14:21:56,916  INFO      class  6  →     6,671
-2026-06-24 14:21:56,916  INFO      class  7  →   112,921
-2026-06-24 14:21:56,916  INFO      class  8  →     4,165
-2026-06-24 14:21:56,917  INFO      class  9  →     1,913
-2026-06-24 14:21:56,917  INFO      class 10  →       949
-2026-06-24 14:21:56,918  INFO    Class distribution in val:
-2026-06-24 14:21:56,918  INFO      class  0  →       826
-2026-06-24 14:21:56,918  INFO      class  1  →    14,360
-2026-06-24 14:21:56,918  INFO      class  2  →     1,254
-2026-06-24 14:21:56,919  INFO      class  3  →    44,646
-2026-06-24 14:21:56,919  INFO      class  4  →     1,029
-2026-06-24 14:21:56,919  INFO      class  5  →       768
-2026-06-24 14:21:56,919  INFO      class  6  →     1,430
-2026-06-24 14:21:56,919  INFO      class  7  →    24,197
-2026-06-24 14:21:56,920  INFO      class  8  →       892
-2026-06-24 14:21:56,920  INFO      class  9  →       410
-2026-06-24 14:21:56,920  INFO      class 10  →       204
-2026-06-24 14:21:56,921  INFO    Class distribution in test:
-2026-06-24 14:21:56,921  INFO      class  0  →       826
-2026-06-24 14:21:56,921  INFO      class  1  →    14,359
-2026-06-24 14:21:56,921  INFO      class  2  →     1,255
-2026-06-24 14:21:56,921  INFO      class  3  →    44,647
-2026-06-24 14:21:56,922  INFO      class  4  →     1,028
-2026-06-24 14:21:56,922  INFO      class  5  →       768
-2026-06-24 14:21:56,922  INFO      class  6  →     1,430
-2026-06-24 14:21:56,922  INFO      class  7  →    24,197
-2026-06-24 14:21:56,922  INFO      class  8  →       892
-2026-06-24 14:21:56,923  INFO      class  9  →       410
-2026-06-24 14:21:56,923  INFO      class 10  →       204
-2026-06-24 14:21:56,950  INFO  [STEP 5] Computing balanced sample weights for training set ...
-2026-06-24 14:21:57,090  INFO    Per-class statistics (class_int → count | mean_weight):
-2026-06-24 14:21:57,092  INFO      class  0  count=   3,856  mean_weight=9.9036
-2026-06-24 14:21:57,096  INFO      class  1  count=  67,010  mean_weight=0.5699
-2026-06-24 14:21:57,098  INFO      class  2  count=   5,854  mean_weight=6.5235
-2026-06-24 14:21:57,102  INFO      class  3  count= 208,349  mean_weight=0.1833
-2026-06-24 14:21:57,103  INFO      class  4  count=   4,799  mean_weight=7.9576
-2026-06-24 14:21:57,105  INFO      class  5  count=   3,586  mean_weight=10.6493
-2026-06-24 14:21:57,106  INFO      class  6  count=   6,671  mean_weight=5.7245
-2026-06-24 14:21:57,109  INFO      class  7  count= 112,921  mean_weight=0.3382
-2026-06-24 14:21:57,111  INFO      class  8  count=   4,165  mean_weight=9.1689
-2026-06-24 14:21:57,112  INFO      class  9  count=   1,913  mean_weight=19.9626
-2026-06-24 14:21:57,113  INFO      class 10  count=     949  mean_weight=40.2407
-2026-06-24 14:21:57,114  INFO    Sample weight range: [0.183291, 40.2407]
-2026-06-24 14:21:57,115  INFO  [STEP 6] Saving arrays to data/processed/ ...
-2026-06-24 14:21:57,318  INFO    Saved X_train_attacktype.npy                        shape=(420073, 115)  dtype=float32
-2026-06-24 14:21:57,352  INFO    Saved X_val_attacktype.npy                          shape=(90016, 115)  dtype=float32
-2026-06-24 14:21:57,392  INFO    Saved X_test_attacktype.npy                         shape=(90016, 115)  dtype=float32
-2026-06-24 14:21:57,394  INFO    Saved y_train_attacktype.npy                        shape=(420073,)  dtype=int64
-2026-06-24 14:21:57,396  INFO    Saved y_val_attacktype.npy                          shape=(90016,)  dtype=int64
-2026-06-24 14:21:57,397  INFO    Saved y_test_attacktype.npy                         shape=(90016,)  dtype=int64
-2026-06-24 14:21:57,399  INFO    Saved sample_weights_train_attacktype.npy           shape=(420073,)  dtype=float32
-2026-06-24 14:21:57,399  INFO  
-2026-06-24 14:21:57,399  INFO  ✓  build_attack_type_dataset.py complete.
-2026-06-24 14:21:57,399  INFO     Classes         : 11
-2026-06-24 14:21:57,399  INFO     Training rows   : 420,073
-2026-06-24 14:21:57,400  INFO     Validation rows : 90,016
-2026-06-24 14:21:57,400  INFO     Test rows       : 90,016
-2026-06-24 14:21:57,400  INFO     Next step: python training/train_attack_type_nn.py
+2026-07-01 17:00:10,686  INFO  ======================================================================
+2026-07-01 17:00:10,686  INFO  build_attack_type_dataset.py — Stage 2 Data Preparation
+2026-07-01 17:00:10,686  INFO  ======================================================================
+2026-07-01 17:00:10,687  INFO  [STEP 1] Loading X_attacks.npy and y_attacks_str.npy ...
+2026-07-01 17:00:10,912  INFO    X_attacks shape : (600141, 115)  dtype=float32
+2026-07-01 17:00:10,913  INFO    y_attacks shape : (600141,)  dtype=<U17
+2026-07-01 17:00:11,046  INFO    Full class distribution (all 13 classes):
+2026-07-01 17:00:11,046  INFO      DoS_Hulk                         297,642
+2026-07-01 17:00:11,046  INFO      Port_Scan                        161,315
+2026-07-01 17:00:11,047  INFO      DDoS_LOIT                         95,729
+2026-07-01 17:00:11,047  INFO      FTP-Patator                        9,531
+2026-07-01 17:00:11,047  INFO      DoS_GoldenEye                      8,363
+2026-07-01 17:00:11,047  INFO      DoS_Slowhttptest                   6,856
+2026-07-01 17:00:11,047  INFO      SSH-Patator                        5,949
+2026-07-01 17:00:11,047  INFO      Botnet_ARES                        5,508
+2026-07-01 17:00:11,048  INFO      DoS_Slowloris                      5,122
+2026-07-01 17:00:11,048  INFO      Web_Brute_Force                    2,733
+2026-07-01 17:00:11,048  INFO      Web_XSS                            1,357
+2026-07-01 17:00:11,048  INFO      Web_SQL_Injection                     24
+2026-07-01 17:00:11,048  INFO      Heartbleed                            12
+2026-07-01 17:00:11,048  INFO  [STEP 2] Filtering excluded classes ...
+2026-07-01 17:00:11,059  INFO    EXCLUDED: Heartbleed  (n=12) — too few samples for reliable training
+2026-07-01 17:00:11,069  INFO    EXCLUDED: Web_SQL_Injection  (n=24) — too few samples for reliable training
+2026-07-01 17:00:11,227  INFO    Rows after filtering: 600,105  (removed 36)
+2026-07-01 17:00:11,228  INFO  [STEP 3] Encoding string labels to integers ...
+2026-07-01 17:00:11,368  INFO    Number of classes (after exclusions): 11
+2026-07-01 17:00:11,368  INFO    Label encoding:
+2026-07-01 17:00:11,369  INFO       0  →  Botnet_ARES
+2026-07-01 17:00:11,369  INFO       1  →  DDoS_LOIT
+2026-07-01 17:00:11,369  INFO       2  →  DoS_GoldenEye
+2026-07-01 17:00:11,369  INFO       3  →  DoS_Hulk
+2026-07-01 17:00:11,369  INFO       4  →  DoS_Slowhttptest
+2026-07-01 17:00:11,370  INFO       5  →  DoS_Slowloris
+2026-07-01 17:00:11,370  INFO       6  →  FTP-Patator
+2026-07-01 17:00:11,370  INFO       7  →  Port_Scan
+2026-07-01 17:00:11,370  INFO       8  →  SSH-Patator
+2026-07-01 17:00:11,370  INFO       9  →  Web_Brute_Force
+2026-07-01 17:00:11,370  INFO      10  →  Web_XSS
+2026-07-01 17:00:11,371  INFO    Saved label map → E:\IISC\IISC_RESEARCH_INTERNSHIP\data\processed\attack_type_label_map.json
+2026-07-01 17:00:11,372  INFO    Saved label map → E:\IISC\IISC_RESEARCH_INTERNSHIP\models\attack_type_label_map.json
+2026-07-01 17:00:11,372  INFO  [STEP 4] Stratified 70 / 15 / 15 split ...
+2026-07-01 17:00:11,940  INFO    X_train : (420073, 115)  y_train : (420073,)
+2026-07-01 17:00:11,940  INFO    X_val   : (90016, 115)  y_val   : (90016,)
+2026-07-01 17:00:11,940  INFO    X_test  : (90016, 115)  y_test  : (90016,)
+2026-07-01 17:00:11,943  INFO    Class distribution in train:
+2026-07-01 17:00:11,944  INFO      class  0  →     3,856
+2026-07-01 17:00:11,944  INFO      class  1  →    67,010
+2026-07-01 17:00:11,944  INFO      class  2  →     5,854
+2026-07-01 17:00:11,944  INFO      class  3  →   208,349
+2026-07-01 17:00:11,944  INFO      class  4  →     4,799
+2026-07-01 17:00:11,944  INFO      class  5  →     3,586
+2026-07-01 17:00:11,945  INFO      class  6  →     6,671
+2026-07-01 17:00:11,945  INFO      class  7  →   112,921
+2026-07-01 17:00:11,945  INFO      class  8  →     4,165
+2026-07-01 17:00:11,945  INFO      class  9  →     1,913
+2026-07-01 17:00:11,945  INFO      class 10  →       949
+2026-07-01 17:00:11,946  INFO    Class distribution in val:
+2026-07-01 17:00:11,946  INFO      class  0  →       826
+2026-07-01 17:00:11,946  INFO      class  1  →    14,360
+2026-07-01 17:00:11,946  INFO      class  2  →     1,254
+2026-07-01 17:00:11,947  INFO      class  3  →    44,646
+2026-07-01 17:00:11,947  INFO      class  4  →     1,029
+2026-07-01 17:00:11,947  INFO      class  5  →       768
+2026-07-01 17:00:11,947  INFO      class  6  →     1,430
+2026-07-01 17:00:11,947  INFO      class  7  →    24,197
+2026-07-01 17:00:11,947  INFO      class  8  →       892
+2026-07-01 17:00:11,948  INFO      class  9  →       410
+2026-07-01 17:00:11,948  INFO      class 10  →       204
+2026-07-01 17:00:11,948  INFO    Class distribution in test:
+2026-07-01 17:00:11,948  INFO      class  0  →       826
+2026-07-01 17:00:11,949  INFO      class  1  →    14,359
+2026-07-01 17:00:11,949  INFO      class  2  →     1,255
+2026-07-01 17:00:11,949  INFO      class  3  →    44,647
+2026-07-01 17:00:11,949  INFO      class  4  →     1,028
+2026-07-01 17:00:11,949  INFO      class  5  →       768
+2026-07-01 17:00:11,949  INFO      class  6  →     1,430
+2026-07-01 17:00:11,949  INFO      class  7  →    24,197
+2026-07-01 17:00:11,950  INFO      class  8  →       892
+2026-07-01 17:00:11,950  INFO      class  9  →       410
+2026-07-01 17:00:11,950  INFO      class 10  →       204
+2026-07-01 17:00:11,959  INFO  [STEP 5] Computing balanced sample weights for training set ...
+2026-07-01 17:00:12,011  INFO    Per-class statistics (class_int → count | mean_weight):
+2026-07-01 17:00:12,013  INFO      class  0  count=   3,856  mean_weight=9.9036
+2026-07-01 17:00:12,015  INFO      class  1  count=  67,010  mean_weight=0.5699
+2026-07-01 17:00:12,016  INFO      class  2  count=   5,854  mean_weight=6.5235
+2026-07-01 17:00:12,019  INFO      class  3  count= 208,349  mean_weight=0.1833
+2026-07-01 17:00:12,020  INFO      class  4  count=   4,799  mean_weight=7.9576
+2026-07-01 17:00:12,021  INFO      class  5  count=   3,586  mean_weight=10.6493
+2026-07-01 17:00:12,022  INFO      class  6  count=   6,671  mean_weight=5.7245
+2026-07-01 17:00:12,024  INFO      class  7  count= 112,921  mean_weight=0.3382
+2026-07-01 17:00:12,025  INFO      class  8  count=   4,165  mean_weight=9.1689
+2026-07-01 17:00:12,027  INFO      class  9  count=   1,913  mean_weight=19.9626
+2026-07-01 17:00:12,028  INFO      class 10  count=     949  mean_weight=40.2407
+2026-07-01 17:00:12,028  INFO    Sample weight range: [0.183291, 40.2407]
+2026-07-01 17:00:12,029  INFO  [STEP 6] Saving arrays to data/processed/ ...
+2026-07-01 17:00:12,203  INFO    Saved X_train_attacktype.npy                        shape=(420073, 115)  dtype=float32
+2026-07-01 17:00:12,235  INFO    Saved X_val_attacktype.npy                          shape=(90016, 115)  dtype=float32
+2026-07-01 17:00:12,267  INFO    Saved X_test_attacktype.npy                         shape=(90016, 115)  dtype=float32
+2026-07-01 17:00:12,269  INFO    Saved y_train_attacktype.npy                        shape=(420073,)  dtype=int64
+2026-07-01 17:00:12,270  INFO    Saved y_val_attacktype.npy                          shape=(90016,)  dtype=int64
+2026-07-01 17:00:12,271  INFO    Saved y_test_attacktype.npy                         shape=(90016,)  dtype=int64
+2026-07-01 17:00:12,273  INFO    Saved sample_weights_train_attacktype.npy           shape=(420073,)  dtype=float32
+2026-07-01 17:00:12,273  INFO  
+2026-07-01 17:00:12,273  INFO  ✓  build_attack_type_dataset.py complete.
+2026-07-01 17:00:12,273  INFO     Classes         : 11
+2026-07-01 17:00:12,273  INFO     Training rows   : 420,073
+2026-07-01 17:00:12,274  INFO     Validation rows : 90,016
+2026-07-01 17:00:12,274  INFO     Test rows       : 90,016
+2026-07-01 17:00:12,274  INFO     Next step: python training/train_attack_type_nn.py
