@@ -53,10 +53,10 @@ import logging
 import time
 
 import numpy as np
+from sklearn.metrics import classification_report, confusion_matrix, f1_score, accuracy_score
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
-from sklearn.metrics import classification_report, confusion_matrix, f1_score, accuracy_score
 
 # ─────────────────────────────────────────────
 # Path anchoring — same pattern as train_autoencoder.py
@@ -90,11 +90,10 @@ RECALL_FLAG_THRESHOLD = 0.70
 # ─────────────────────────────────────────────
 LOG_PATH = os.path.join(DATA_DIR, "train_attack_type_nn.log")
 
-_stream_handler = logging.StreamHandler()
-_stream_handler.stream = open(
-    _stream_handler.stream.fileno(),
-    mode="w", encoding="utf-8", closefd=False, buffering=1
-)
+import sys
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
+_stream_handler = logging.StreamHandler(sys.stderr)
 
 logging.basicConfig(
     level=logging.INFO,

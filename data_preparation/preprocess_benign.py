@@ -407,7 +407,7 @@ def save_outputs(
 # ═══════════════════════════════════════════════════════════
 # STEP 12 — Save preprocessing report
 # ═══════════════════════════════════════════════════════════
-def save_report(df_raw, df_clean, feature_names, X_train, X_val, X_test, output_dir: str):
+def save_report(n_raw: int, df_clean, feature_names, X_train, X_val, X_test, output_dir: str):
     """Write a human-readable summary of the benign preprocessing run."""
     report_path = os.path.join(output_dir, "preprocessing_benign_report.txt")
     lines = [
@@ -416,10 +416,9 @@ def save_report(df_raw, df_clean, feature_names, X_train, X_val, X_test, output_
         "(Input for Autoencoder Training — CICIDS2017 Benign Files)",
         "=" * 65,
         "",
-        f"Raw rows loaded      : {len(df_raw):,}",
-        f"After inf/NaN drop   : {len(df_raw) - (len(df_raw) - len(df_clean)):,}  (approx; dedup follows)",
-        f"After dedup          : {len(df_clean):,}",
-        f"Rows removed (total) : {len(df_raw) - len(df_clean):,}",
+        f"Raw rows loaded      : {n_raw:,}",
+        f"After dedup + clean  : {len(df_clean):,}",
+        f"Rows removed (total) : {n_raw - len(df_clean):,}",
         f"Feature columns      : {len(feature_names)}",
         "",
         "SPLIT SIZES:",
@@ -475,7 +474,12 @@ def main():
     df_raw = load_benign_files(BENIGN_DATA_DIR)
 
     # 2. Fix column names
-    df = fix_column_names(df_raw.copy())
+    # NOTE: fix_column_names only strips whitespace from column names and drops
+    # Unnamed cols — no data values are mutated, so no copy needed.
+    # Passing df_raw directly avoids duplicating the ~1.7 GB float64 frame in memory.
+    n_raw = len(df_raw)                # capture raw row count before freeing
+    df = fix_column_names(df_raw)
+    del df_raw  # free ~1.7 GB before the heavy cleaning steps
 
     # 3. Drop identifiers and label columns
     df = drop_identifier_columns(df)
@@ -509,7 +513,7 @@ def main():
     save_outputs(X_train, X_val, X_test, feature_names, OUTPUT_DIR)
 
     # 12. Save report
-    save_report(df_raw, df, feature_names, X_train, X_val, X_test, OUTPUT_DIR)
+    save_report(n_raw, df, feature_names, X_train, X_val, X_test, OUTPUT_DIR)
 
     log.info("\n✅  Benign preprocessing complete!")
     log.info(f"    Feature dimensions  : {X_train.shape[1]}")

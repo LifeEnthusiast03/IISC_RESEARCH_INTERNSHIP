@@ -27,20 +27,20 @@ import json
 import logging
 
 import numpy as np
+from sklearn.metrics import precision_recall_curve, auc  # noqa: E402
 import torch
 
 # ─────────────────────────────────────────────
 # Path anchoring — same pattern as train_autoencoder.py
 # ─────────────────────────────────────────────
-_SCRIPT_DIR   = os.path.dirname(os.path.abspath(__file__))   # .../training/
+_SCRIPT_DIR   = os.path.dirname(os.path.abspath(__file__))   # .../evaluation/
 _PROJECT_ROOT = os.path.dirname(_SCRIPT_DIR)                 # .../IISC_RESEARCH_INTERNSHIP/
 
 # Add training/ to sys.path so we can import from train_autoencoder.py
-sys.path.insert(0, _SCRIPT_DIR)
+_TRAINING_DIR = os.path.join(_PROJECT_ROOT, "training")
+sys.path.insert(0, _TRAINING_DIR)
 
 from train_autoencoder import Autoencoder, compute_reconstruction_errors  # noqa: E402
-
-from sklearn.metrics import precision_recall_curve, auc  # noqa: E402
 
 DATA_DIR  = os.path.join(_PROJECT_ROOT, "data",   "processed")
 MODEL_DIR = os.path.join(_PROJECT_ROOT, "models")
@@ -51,11 +51,9 @@ BATCH_SIZE    = 512
 # ─────────────────────────────────────────────
 # Logging  (console only — UTF-8 safe)
 # ─────────────────────────────────────────────
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 _handler = logging.StreamHandler(sys.stdout)
-_handler.stream = open(
-    _handler.stream.fileno(),
-    mode="w", encoding="utf-8", closefd=False, buffering=1
-)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)s  %(message)s",

@@ -82,11 +82,10 @@ DROPOUT_P   = 0.2
 # ─────────────────────────────────────────────
 # Logging setup  (console + file, UTF-8 safe on Windows)
 # ─────────────────────────────────────────────
-_stream_handler = logging.StreamHandler()
-_stream_handler.stream = open(
-    _stream_handler.stream.fileno(),
-    mode="w", encoding="utf-8", closefd=False, buffering=1
-)
+import sys
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
+_stream_handler = logging.StreamHandler(sys.stderr)
 
 logging.basicConfig(
     level=logging.INFO,

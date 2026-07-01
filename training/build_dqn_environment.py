@@ -65,6 +65,7 @@ import json
 import logging
 
 import numpy as np
+from sklearn.model_selection import train_test_split
 import torch
 
 # Add training/ to path so we can import from sibling scripts
@@ -74,8 +75,6 @@ sys.path.insert(0, _SCRIPT_DIR)
 
 from train_autoencoder   import Autoencoder, INPUT_DIM as AE_INPUT_DIM
 from train_attack_type_nn import AttackTypeNN
-
-from sklearn.model_selection import train_test_split
 
 DATA_DIR  = os.path.join(_PROJECT_ROOT, "data",   "processed")
 MODEL_DIR = os.path.join(_PROJECT_ROOT, "models")
@@ -126,8 +125,9 @@ TEST_FRAC = 0.15
 # Logging
 # ─────────────────────────────────────────────
 LOG_PATH = os.path.join(DATA_DIR, "build_dqn_environment.log")
-_sh = logging.StreamHandler()
-_sh.stream = open(_sh.stream.fileno(), mode="w", encoding="utf-8", closefd=False, buffering=1)
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
+_sh = logging.StreamHandler(sys.stderr)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)s  %(message)s",
