@@ -28,7 +28,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # ── Artefact paths ────────────────────────────────────────────────────────────
-_ROOT       = Path(__file__).resolve().parents[3]   # project root
+_ROOT       = Path(__file__).resolve().parents[2]   # project root
 _MODELS_DIR = _ROOT / "models"
 
 _AUTOENCODER_PATH            = _MODELS_DIR / "autoencoder.pt"
@@ -75,51 +75,32 @@ def load_models() -> None:
 
     import joblib  # noqa: PLC0415
     import torch   # noqa: PLC0415
-
-    # 1. Autoencoder (PyTorch) ─────────────────────────────────────────────────
+    
+    # Imports for model architectures
+    import sys
+    # Ensure project root is in sys.path
+    if str(_ROOT) not in sys.path:
+        sys.path.append(str(_ROOT))
+        
     try:
-        autoencoder = torch.load(_AUTOENCODER_PATH, map_location="cpu", weights_only=False)
-        autoencoder.eval()
-        autoencoder_ready = True
-        logger.info("[ML] Autoencoder loaded from %s", _AUTOENCODER_PATH)
-    except FileNotFoundError:
-        logger.warning("[ML] Autoencoder NOT found at %s", _AUTOENCODER_PATH)
-    except Exception as exc:  # noqa: BLE001
-        logger.error("[ML] Failed to load autoencoder: %s", exc)
+        from training.train_autoencoder import Autoencoder
+        from training.train_attack_type_nn import AttackTypeNN
+        from training.train_dqn import DQNNetwork
+    except ImportError as exc:
+        logger.error("[ML] Could not import model architectures from training module: %s", exc)
+        return
 
-    # 2. Hybrid Classifier (sklearn / joblib pickle) ───────────────────────────
+    # ── Supporting artefacts must be loaded FIRST for dimensions ──────────────
+
+    # Attack type label map (determines n_classes)
     try:
-        hybrid_classifier = joblib.load(_HYBRID_CLASSIFIER_PATH)
-        hybrid_classifier_ready = True
-        logger.info("[ML] Hybrid classifier loaded from %s", _HYBRID_CLASSIFIER_PATH)
-    except FileNotFoundError:
-        logger.warning("[ML] Hybrid classifier NOT found at %s", _HYBRID_CLASSIFIER_PATH)
+        with open(_ATTACK_TYPE_LABEL_MAP_PATH) as f:
+            attack_type_label_map = json.load(f)
+        logger.info("[ML] Attack type label map loaded (%d classes)", len(attack_type_label_map))
     except Exception as exc:  # noqa: BLE001
-        logger.error("[ML] Failed to load hybrid classifier: %s", exc)
-
-    # 3. Attack Type NN (PyTorch) ──────────────────────────────────────────────
-    try:
-        attack_type_nn = torch.load(_ATTACK_TYPE_NN_PATH, map_location="cpu", weights_only=False)
-        attack_type_nn.eval()
-        attack_type_nn_ready = True
-        logger.info("[ML] Attack type NN loaded from %s", _ATTACK_TYPE_NN_PATH)
-    except FileNotFoundError:
-        logger.warning("[ML] Attack type NN NOT found at %s", _ATTACK_TYPE_NN_PATH)
-    except Exception as exc:  # noqa: BLE001
-        logger.error("[ML] Failed to load attack type NN: %s", exc)
-
-    # 4. DQN Agent (PyTorch) ───────────────────────────────────────────────────
-    try:
-        dqn_agent = torch.load(_DQN_AGENT_PATH, map_location="cpu", weights_only=False)
-        dqn_agent.eval()
-        dqn_agent_ready = True
-        logger.info("[ML] DQN agent loaded from %s", _DQN_AGENT_PATH)
-    except FileNotFoundError:
-        logger.warning("[ML] DQN agent NOT found at %s", _DQN_AGENT_PATH)
-    except Exception as exc:  # noqa: BLE001
-        logger.error("[ML] Failed to load DQN agent: %s", exc)
-
-    # ── Supporting artefacts ──────────────────────────────────────────────────
+        logger.warning("[ML] Attack type label map not loaded: %s", exc)
+        
+    n_classes = len(attack_type_label_map) if attack_type_label_map else 11 # Safe default
 
     # Scaler
     try:
@@ -135,14 +116,6 @@ def load_models() -> None:
     except Exception as exc:  # noqa: BLE001
         logger.warning("[ML] Hybrid label encoder not loaded: %s", exc)
 
-    # Attack type label map
-    try:
-        with open(_ATTACK_TYPE_LABEL_MAP_PATH) as f:
-            attack_type_label_map = json.load(f)
-        logger.info("[ML] Attack type label map loaded (%d classes)", len(attack_type_label_map))
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("[ML] Attack type label map not loaded: %s", exc)
-
     # Anomaly threshold
     try:
         with open(_THRESHOLD_PATH) as f:
@@ -150,6 +123,57 @@ def load_models() -> None:
         logger.info("[ML] Anomaly threshold loaded: %.6f", threshold)
     except Exception as exc:  # noqa: BLE001
         logger.warning("[ML] Threshold not loaded: %s", exc)
+
+
+    # ── 1. Autoencoder (PyTorch) ──────────────────────────────────────────────
+    try:
+        state_dict = torch.load(_AUTOENCODER_PATH, map_location="cpu", weights_only=True)
+        autoencoder = Autoencoder(input_dim=115, dropout_p=0.2)
+        autoencoder.load_state_dict(state_dict)
+        autoencoder.eval()
+        autoencoder_ready = True
+        logger.info("[ML] Autoencoder loaded from %s", _AUTOENCODER_PATH)
+    except FileNotFoundError:
+        logger.warning("[ML] Autoencoder NOT found at %s", _AUTOENCODER_PATH)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("[ML] Failed to load autoencoder: %s", exc)
+
+    # ── 2. Hybrid Classifier (sklearn / joblib pickle) ────────────────────────
+    try:
+        hybrid_classifier = joblib.load(_HYBRID_CLASSIFIER_PATH)
+        hybrid_classifier_ready = True
+        logger.info("[ML] Hybrid classifier loaded from %s", _HYBRID_CLASSIFIER_PATH)
+    except FileNotFoundError:
+        logger.warning("[ML] Hybrid classifier NOT found at %s", _HYBRID_CLASSIFIER_PATH)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("[ML] Failed to load hybrid classifier: %s", exc)
+
+    # ── 3. Attack Type NN (PyTorch) ───────────────────────────────────────────
+    try:
+        state_dict = torch.load(_ATTACK_TYPE_NN_PATH, map_location="cpu", weights_only=True)
+        attack_type_nn = AttackTypeNN(input_dim=115, n_classes=n_classes, dropout_p=0.2)
+        attack_type_nn.load_state_dict(state_dict)
+        attack_type_nn.eval()
+        attack_type_nn_ready = True
+        logger.info("[ML] Attack type NN loaded from %s", _ATTACK_TYPE_NN_PATH)
+    except FileNotFoundError:
+        logger.warning("[ML] Attack type NN NOT found at %s", _ATTACK_TYPE_NN_PATH)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("[ML] Failed to load attack type NN: %s", exc)
+
+    # ── 4. DQN Agent (PyTorch) ────────────────────────────────────────────────
+    try:
+        state_dim = 115 + 1 + n_classes + 1
+        state_dict = torch.load(_DQN_AGENT_PATH, map_location="cpu", weights_only=True)
+        dqn_agent = DQNNetwork(state_dim=state_dim, n_actions=5)
+        dqn_agent.load_state_dict(state_dict)
+        dqn_agent.eval()
+        dqn_agent_ready = True
+        logger.info("[ML] DQN agent loaded from %s", _DQN_AGENT_PATH)
+    except FileNotFoundError:
+        logger.warning("[ML] DQN agent NOT found at %s", _DQN_AGENT_PATH)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("[ML] Failed to load DQN agent: %s", exc)
 
 
 def all_models_ready() -> bool:
