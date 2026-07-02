@@ -105,10 +105,10 @@ async def lifespan(app: FastAPI):
     # -- 3. ML model loading ----------------------------------------------
     print("\n[ML] Loading model artefacts...")
     try:
-        import backend.inference as _inf  # noqa: PLC0415
+        import backend.models.init_models as _inf  # noqa: PLC0415
 
         _inf.load_models()
-        if _inf.autoencoder_ready and _inf.dqn_ready:
+        if _inf.autoencoder_ready and _inf.dqn_agent_ready:
             print("[ML] [OK] Autoencoder + DQN agent loaded and ready")
         else:
             print("[ML] [--] Models NOT loaded - POST /predict will return HTTP 503")

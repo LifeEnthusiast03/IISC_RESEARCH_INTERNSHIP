@@ -1,13 +1,13 @@
 """
 backend/routers/health.py
-──────────────────────────
-GET /health — operational health-check endpoint.
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+GET /health â€” operational health-check endpoint.
 
 Returns a snapshot of:
-  • Overall service status  ("ok" | "degraded")
-  • Whether the autoencoder / DQN artefacts are loaded in memory
-  • Whether a Postgres round-trip succeeds
-  • How long the process has been running (uptime)
+  â€¢ Overall service status  ("ok" | "degraded")
+  â€¢ Whether the autoencoder / DQN artefacts are loaded in memory
+  â€¢ Whether a Postgres round-trip succeeds
+  â€¢ How long the process has been running (uptime)
 
 The inference-readiness flags are read from ``backend.inference`` module-level
 state variables (``autoencoder_ready`` and ``dqn_ready``) that are set during
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["health"])
 
-# Process start time — used to compute uptime_seconds
+# Process start time â€” used to compute uptime_seconds
 _START_TIME: float = time.monotonic()
 
 
@@ -48,21 +48,21 @@ def health_check() -> HealthResponse:
 
     The database ping uses a single ``SELECT 1`` wrapped in try/except so the
     endpoint always responds (with ``status='degraded'``) even when Postgres
-    is down — it never raises a 500.
+    is down â€” it never raises a 500.
 
     ML model readiness is derived from module-level flags in
     ``backend.inference`` (set to True once the .pt artefacts are loaded).
     """
-    # ── DB connectivity ──────────────────────────────────────────────────────
+    # â”€â”€ DB connectivity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     db_ok = check_db_connection()
 
-    # ── ML model readiness ───────────────────────────────────────────────────
+    # â”€â”€ ML model readiness â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     autoencoder_loaded = False
     dqn_loaded = False
     try:
-        import backend.inference as _inf  # lazy import avoids circular deps
+        import backend.models.init_models as _inf  # lazy import avoids circular deps
         autoencoder_loaded = getattr(_inf, "autoencoder_ready", False)
-        dqn_loaded = getattr(_inf, "dqn_ready", False)
+        dqn_loaded = getattr(_inf, "dqn_agent_ready", False)
     except Exception:  # noqa: BLE001
         pass  # inference module may not be initialised yet
 
