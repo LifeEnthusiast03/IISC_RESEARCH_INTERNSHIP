@@ -1205,6 +1205,96 @@ Supporting artefacts also loaded at startup: `scaler.pkl`, `hybrid_label_encoder
 
 ---
 
+### 📅 2 July 2026 — Full Pipeline Integration, Model Loading Fix & Frontend Live Feed
+
+**Context:** First end-to-end integration test of the complete system (simulator → FastAPI → WebSocket → React dashboard). Multiple bugs were identified and resolved to bring all four stages of the pipeline online simultaneously.
+
+---
+
+#### Backend — Model Loading Overhaul (`backend/models/init_models.py`)
+
+The `load_models()` function was previously calling `torch.load()` expecting a full PyTorch model object. However, all `.pt` files in `models/` were saved using `torch.save(model.state_dict(), ...)` — i.e. they contain only the **state dictionary** (an `OrderedDict` of weights), not a full model instance. Calling `.eval()` on an `OrderedDict` crashed the startup loader, leaving all four `*_ready` flags as `False`.
+
+**Fix:** Rewrote `load_models()` to use the correct **instantiate-then-load** pattern:
+1. Import the model class definitions from the training scripts (`Autoencoder`, `AttackTypeNN`, `DQNNetwork`)
+2. Instantiate each model with its correct constructor arguments (`input_dim`, `n_classes`, `state_dim`, etc.)
+3. Call `model.load_state_dict(torch.load(..., weights_only=True))`
+4. Call `model.eval()` on the live model object
+
+The `n_classes` value for `AttackTypeNN` and `state_dim` for `DQNNetwork` are now derived at load-time from `attack_type_label_map.json` to remain self-consistent with training.
+
+**Also fixed:** The `_ROOT` path constant used `parents[3]` (pointed to `E:\IISC\`, one level above the project root). Changed to `parents[2]` which correctly resolves to `E:\IISC\IISC_RESEARCH_INTERNSHIP\`.
+
+---
+
+#### Backend — Module Import Consolidation
+
+`backend/main.py` and `backend/routers/health_route.py` were importing model-readiness flags from the old, unimplemented `backend/inference.py` placeholder instead of the active `backend/models/init_models.py`. This meant `load_models()` was never actually called on the correct module at startup.
+
+**Fix:** Updated both files to `import backend.models.init_models as _inf` and reference `_inf.autoencoder_ready` / `_inf.dqn_agent_ready`.
+
+---
+
+#### Backend — Hybrid Label Encoder Fix (`backend/anomaly_classifier/anomaly_detection.py`)
+
+The `hybrid_label_encoder.pkl` file produced by the training pipeline stores a plain Python **list** of class names (e.g. `['Benign', 'Botnet_ARES', 'DoS_Hulk', ...]`), not a `sklearn.LabelEncoder` object. The anomaly detection module was calling `.inverse_transform()` on this list, which crashed with `AttributeError: 'list' object has no attribute 'inverse_transform'`.
+
+**Fix:** Updated `_run_hybrid_classifier()` to check `isinstance(_state.hybrid_label_encoder, list)` and use direct index lookup (`hybrid_label_encoder[pred_idx]`) when a list is detected, falling back to `.inverse_transform()` only for actual sklearn encoder objects.
+
+---
+
+#### Backend — Double-Scaling Bypass Preserved
+
+The simulator (`simulator/streamlit_app.py`) sends features that are **already MinMax-scaled** (loaded from `X_attacks.npy` which was produced by `preprocess_attack.py`). The `scale_features()` helper functions inside `anomaly_detection.py` and `attack_identifier.py` were preserved but are NOT called at inference time, preventing double-scaling of the input. The functions remain available for future use when raw (unscaled) inputs need to be processed.
+
+---
+
+#### Frontend — Live Threat Feed Wired to WebSocket (`frontend/incident-dashboard/src/App.tsx`)
+
+The "Live Threat Feed" table was previously rendering a static hardcoded `RECENT_ALERTS` array and not displaying any real WebSocket data, even though the `useWebSocket` hook was correctly receiving messages.
+
+**Fixes applied:**
+- Replaced `RECENT_ALERTS.map(...)` with `messages.slice().reverse().map(...)` to render live incoming WebSocket messages in reverse-chronological order (newest at top)
+- Corrected the payload field mapping: backend broadcasts `dqn_action` (not `action`); the frontend now reads `msg.data?.dqn_action`
+- Extended the table layout to show all key fields from each broadcast payload:
+
+| Column | Source field |
+|---|---|
+| TIME | `msg.receivedAt` (browser timestamp) |
+| CONNECTION | `source_ip` + `dest_ip` (two-line stacked) |
+| ATTACK | `attack_type` (highlighted in amber) |
+| ACTION | `dqn_action` + `recon_error` (sub-label) |
+| SEV | Derived from action — `Block IP` → `critical`, `Isolate` → `warning`, else `info` |
+
+- Added `maxHeight: 400px` + `overflow-y: auto` so the feed scrolls without pushing the rest of the layout
+- Added `Listening for threats...` placeholder when no messages have arrived yet
+
+---
+
+#### Simulator — Garbled Text / Encoding Repair (`simulator/streamlit_app.py`)
+
+The file had accumulated Mojibake across multiple sessions where UTF-8 bytes were mis-read as Latin-1 and then re-saved as UTF-8. Several emoji icons were also corrupted at the byte level beyond automatic recovery.
+
+**Fix:** Rewrote `streamlit_app.py` from scratch using **Python Unicode escape sequences** for all non-ASCII characters (e.g. `\U0001f916` for 🤖, `\u25b6` for ▶) so the file is guaranteed to be pure 7-bit-safe ASCII with explicit Unicode escapes — immune to future editor or shell re-encoding accidents. All log message symbols that previously used Unicode (—, ✗, ►, ◈) were replaced with ASCII equivalents (`-`, `[X]`, `>`, `◈`) in the log box strings.
+
+**Verified:** `0 lines with latin-range chars` and `Syntax OK` after rewrite.
+
+---
+
+#### Files Modified Today
+
+| File | Change |
+|---|---|
+| `backend/models/init_models.py` | Rewrote `load_models()` to use instantiate-then-`load_state_dict()` pattern; fixed `_ROOT` path |
+| `backend/main.py` | Changed startup import from `backend.inference` → `backend.models.init_models` |
+| `backend/routers/health_route.py` | Changed readiness flag import from `backend.inference` → `backend.models.init_models`; fixed `dqn_ready` → `dqn_agent_ready` |
+| `backend/anomaly_classifier/anomaly_detection.py` | Fixed `_run_hybrid_classifier()` to support list-type label encoder; preserved `_scale_features()` helper but bypassed it to prevent double-scaling |
+| `backend/attacktype_classifier/attack_identifier.py` | Preserved `_scale_features()` helper but bypassed it in `identify_attack()` to avoid double-scaling of simulator features |
+| `backend/dqn_agent/dqn_suggestion.py` | Verified state vector generation correctly passes raw (unscaled) features to the DQN per training design |
+| `frontend/incident-dashboard/src/App.tsx` | Wired Live Threat Feed to live WebSocket `messages`; extended table columns; fixed `dqn_action` field mapping; added scroll and severity badge logic |
+| `simulator/streamlit_app.py` | Full rewrite with Unicode escapes to permanently eliminate Mojibake |
+
+---
 
 
 ## System Architecture
