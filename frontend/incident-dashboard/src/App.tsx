@@ -1,4 +1,7 @@
 import './App.css'
+import { useWebSocket } from './hooks/useWebSocket'
+import { WsStatusBar }   from './components/WsStatusBar'
+import { WsMessageFeed } from './components/WsMessageFeed'
 
 // ── Mock data (replace with real WebSocket feed in later stages) ──────────
 const STATS = [
@@ -97,8 +100,15 @@ function Badge({ severity }: { severity: string }) {
 
 // ── Main App ────────────────────────────────────────────────────────────────
 export default function App() {
+  const { status, messages, clearMessages } = useWebSocket()
+
   return (
     <div className="relative min-h-screen" style={{ background: 'var(--col-bg)' }}>
+
+      {/* -- WebSocket status bar (fixed top-right) ----------------------- */}
+      <div className="fixed top-4 right-4 z-50 w-auto max-w-sm">
+        <WsStatusBar status={status} messageCount={messages.length} />
+      </div>
 
       {/* Ambient background */}
       <div className="grid-bg" />
@@ -307,40 +317,57 @@ export default function App() {
 
             {/* Table header */}
             <div
-              className="grid grid-cols-5 gap-2 px-2 py-1.5 rounded-lg mb-2 mono text-xs"
+              className="grid gap-2 px-2 py-1.5 rounded-lg mb-2 mono text-xs font-semibold"
               style={{
                 background: 'rgba(255,255,255,0.03)',
-                color: 'var(--col-text)',
-                gridTemplateColumns: '80px 1fr 80px 1fr 70px',
+                color: 'var(--col-text-hi)',
+                gridTemplateColumns: '80px 2fr 1.5fr 1.5fr 80px',
               }}
             >
               <span>TIME</span>
-              <span>SOURCE IP</span>
-              <span>TYPE</span>
+              <span>CONNECTION</span>
+              <span>ATTACK</span>
               <span>ACTION</span>
               <span>SEV</span>
             </div>
 
             {/* Rows */}
-            <div className="space-y-1">
-              {RECENT_ALERTS.map((alert, i) => (
+            <div className="space-y-1 overflow-y-auto" style={{ maxHeight: '400px', paddingRight: '4px' }}>
+              {messages.slice().reverse().map((msg) => {
+                const action = msg.data?.dqn_action || msg.data?.action || '-';
+                const severity = action === 'Block IP' ? 'critical' : action === 'Isolate' ? 'warning' : 'info';
+                
+                return (
                 <div
-                  key={i}
-                  className="grid gap-2 px-2 py-2 rounded-lg text-xs transition-colors"
+                  key={msg.id}
+                  className="grid gap-2 px-2 py-2 rounded-lg text-xs transition-colors items-center"
                   style={{
                     background: 'rgba(255,255,255,0.01)',
                     border: '1px solid var(--col-border)',
-                    gridTemplateColumns: '80px 1fr 80px 1fr 70px',
+                    gridTemplateColumns: '80px 2fr 1.5fr 1.5fr 80px',
                     color: 'var(--col-text)',
                   }}
                 >
-                  <span className="mono">{alert.time}</span>
-                  <span className="mono">{alert.src}</span>
-                  <span>{alert.type}</span>
-                  <span>{alert.action}</span>
-                  <Badge severity={alert.severity} />
+                  <span className="mono">{msg.receivedAt.toLocaleTimeString([], { hour12: false })}</span>
+                  <span className="mono truncate leading-tight" title={`${msg.data?.source_ip} -> ${msg.data?.dest_ip}`}>
+                    {msg.data?.source_ip || 'System'}
+                    {msg.data?.dest_ip && <span className="opacity-40 block text-[10px]">&rarr; {msg.data.dest_ip}</span>}
+                  </span>
+                  <span className="truncate font-medium" title={msg.data?.attack_type || msg.data?.message} style={{ color: 'var(--col-amber)' }}>
+                    {msg.data?.attack_type || msg.data?.message || 'Info'}
+                  </span>
+                  <span className="truncate leading-tight" title={`Action: ${action}`}>
+                    {action}
+                    {msg.data?.recon_error !== undefined && <span className="text-[10px] opacity-50 block">Err: {msg.data.recon_error}</span>}
+                  </span>
+                  <Badge severity={severity} />
                 </div>
-              ))}
+              )})}
+              {messages.length === 0 && (
+                <div className="text-center p-4 text-xs" style={{ color: 'var(--col-text)' }}>
+                  Listening for threats...
+                </div>
+              )}
             </div>
 
             {/* Waiting banner */}
@@ -427,7 +454,7 @@ export default function App() {
           </div>
         </div>
 
-      </main>
+            </main>
 
       {/* ── FOOTER ───────────────────────────────────────────────────── */}
       <footer
