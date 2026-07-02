@@ -54,6 +54,11 @@ async def alerts_endpoint(websocket: WebSocket) -> None:
         }
     """
     await manager.connect(websocket)
+    await websocket.send_json({
+        "event": "connected",
+        "message": "Connected to IDS alert stream successfully.",
+        "active_connections": manager.active_count,
+    })
     try:
         # Block here indefinitely.
         # receive() wakes only when the client disconnects, which raises

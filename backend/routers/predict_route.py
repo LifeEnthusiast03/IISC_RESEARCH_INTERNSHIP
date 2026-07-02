@@ -33,39 +33,14 @@ from backend.db.init_db import get_db
 from backend.db.database_models import Incident
 from backend.websocket.connection import manager
 from backend.schemas import FlowFeatures, IncidentOut, PredictResponse
+from backend.anomaly_classifier.anomaly_detection import detect_anomaly
+from backend.attacktype_classifier.attack_identifier import identify_attack
+from backend.dqn_agent.dqn_suggestion import suggest_action
+from backend.schemas import AnomalyDetectionResult, AttackTypeResult, DQNSuggestionRequest, DQNSuggestionResult
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["predict"])
-
-
-def _check_models_ready() -> None:
-    """
-    Raise HTTP 503 if the ML artefacts are not yet loaded.
-
-    This check is intentionally defensive: it never crashes if
-    ``backend.inference`` fails to import (e.g. PyTorch not installed).
-    """
-    autoencoder_ready = False
-    dqn_ready = False
-    try:
-        import backend.inference as _inf
-
-        autoencoder_ready = getattr(_inf, "autoencoder_ready", False)
-        dqn_ready = getattr(_inf, "dqn_ready", False)
-    except Exception:  # noqa: BLE001
-        pass
-
-    if not autoencoder_ready or not dqn_ready:
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "ML models are not yet loaded.  "
-                "Ensure that models/autoencoder.pt, models/dqn_agent.pt, "
-                "models/scaler.pkl, and models/threshold.json exist and that "
-                "the application was restarted after training completed."
-            ),
-        )
 
 
 @router.post(
@@ -88,90 +63,85 @@ async def predict(
     db: Session = Depends(get_db),
 ) -> PredictResponse:
     """
-    Two-stage inference endpoint.
-
-    **Stage 1 — Autoencoder (anomaly detection)**
-    Normalises the feature vector with the fitted scaler, reconstructs it
-    through the autoencoder, and computes the per-sample MSE.  If the error
-    exceeds the threshold stored in threshold.json the flow is flagged as an
-    anomaly.
-
-    **Stage 2 — DQN (attack classification + remediation)**
-    Anomalous flows are passed to the DQN agent which returns:
-    • ``attack_type_predicted`` — e.g. "DoS", "PortScan", "Brute Force"
-    • ``dqn_action``            — one of block_ip | revoke_credentials |
-                                    isolate_server | kill_process | monitor
-
-    **Persistence**
-    An ``Incident`` row is inserted for **every** call (benign included) so
-    the dashboard can display full traffic baselines alongside threat events.
-    Anomalous incidents are also broadcast to all WebSocket subscribers.
+    Three-stage IDS inference pipeline:
+      Stage 1 -- Autoencoder anomaly gate
+      Stage 2 -- Attack-type classifier    (only if anomaly detected)
+      Stage 3 -- DQN remediation agent     (only if anomaly detected)
+    Always persists an Incident row and broadcasts via WebSocket if anomalous.
     """
-    # ── Guard: models must be loaded ─────────────────────────────────────────
-    _check_models_ready()
+    try:
+        # -- Stage 1: Anomaly detection ----------------------------------------
+        # detect_anomaly() expects list[float] -- extract from the FlowFeatures model
+        anomaly_result: AnomalyDetectionResult = detect_anomaly(payload.features)
 
-    # ── Stage 1: Autoencoder inference ───────────────────────────────────────
-    # TODO: replace with real inference.py call once models are trained
-    # Example of how this will look when inference.py is complete:
-    #
-    #   import backend.inference as _inf
-    #   reconstruction_error = _inf.compute_reconstruction_error(payload.features)
-    #   threshold            = _inf.get_threshold()
-    #
-    reconstruction_error: float = 0.0   # placeholder
-    threshold: float = 0.5              # placeholder
+        is_anomaly        = anomaly_result.is_anomaly
+        attack_type_label: str | None  = None
+        dqn_action_label:  str | None  = None
 
-    is_anomaly: bool = reconstruction_error > threshold
+        if is_anomaly:
+            # -- Stage 2: Attack-type classification ---------------------------
+            # identify_attack() expects dict[str, float] (named features).
+            # We generate synthetic feature names f0..f114 preserving order.
+            print(anomaly_result.attack_type)
+            named_features: dict[str, float] = {
+                f"f{i}": v for i, v in enumerate(payload.features)
+            }
+            attack_type_result: AttackTypeResult = identify_attack(named_features)
+            attack_type_label = attack_type_result.attack_type
+            print(attack_type_result.attack_type)
+            # -- Stage 3: DQN remediation suggestion ---------------------------
+            # attack_type_probs is list[float]; extract values from the dict in order
+            dqn_req = DQNSuggestionRequest(
+                attack_type=attack_type_result.attack_type,
+                attack_confidence=attack_type_result.attack_type_confidence,
+                ae_reconstruction_error=anomaly_result.reconstruction_error,
+                attack_type_probs=list(attack_type_result.all_attack_probabilities.values()),
+                raw_features=payload.features,   # list[float], not payload.dict()
+            )
+            dqn_result: DQNSuggestionResult = suggest_action(dqn_req)
+            dqn_action_label = dqn_result.recommended_action
 
-    # ── Stage 2: DQN agent (only for anomalous flows) ────────────────────────
-    # TODO: replace with real inference.py call once models are trained
-    # Example of how this will look when inference.py is complete:
-    #
-    #   attack_type, action = _inf.run_dqn(payload.features, reconstruction_error)
-    #
-    attack_type_predicted: str | None = None
-    dqn_action: str | None = None
+        # -- Persist Incident row (always -- benign baseline is useful) ---------
+        incident = Incident(
+            timestamp=datetime.now(timezone.utc),
+            source_ip=payload.source_ip or "0.0.0.0",
+            dest_ip=payload.dest_ip or "0.0.0.0",
+            src_port=payload.src_port,
+            dst_port=payload.dst_port,
+            reconstruction_error=anomaly_result.reconstruction_error,
+            is_anomaly=is_anomaly,
+            attack_type_predicted=attack_type_label,
+            dqn_action=dqn_action_label,
+            action_status="simulated",
+            raw_features=payload.features,
+        )
+        db.add(incident)
+        db.commit()
+        db.refresh(incident)
 
-    if is_anomaly:
-        attack_type_predicted = "Unknown"   # placeholder
-        dqn_action = "monitor"              # placeholder (safest default)
+        # -- WebSocket broadcast (anomalies only) -------------------------------
+        if is_anomaly:
+            await manager.broadcast({
+                "event":          "anomaly",
+                "incident_id":    incident.id,
+                "source_ip":      incident.source_ip,
+                "dest_ip":        incident.dest_ip,
+                "attack_type":    attack_type_label,
+                "dqn_action":     dqn_action_label,
+                "recon_error":    round(anomaly_result.reconstruction_error, 6),
+                "timestamp":      incident.timestamp.isoformat(),
+            })
 
-    # ── Persist Incident ──────────────────────────────────────────────────────
-    incident = Incident(
-        timestamp=datetime.now(timezone.utc),
-        source_ip=payload.source_ip or "0.0.0.0",
-        dest_ip=payload.dest_ip or "0.0.0.0",
-        src_port=payload.src_port,
-        dst_port=payload.dst_port,
-        reconstruction_error=reconstruction_error,
-        is_anomaly=is_anomaly,
-        attack_type_predicted=attack_type_predicted,
-        dqn_action=dqn_action,
-        action_status="simulated",  # all actions are simulated until an executor is wired
-        raw_features={"features": payload.features},
-    )
-    db.add(incident)
-    db.commit()
-    db.refresh(incident)
+        # -- Return response ----------------------------------------------------
+        return PredictResponse(
+            reconstruction_error=anomaly_result.reconstruction_error,
+            is_anomaly=is_anomaly,
+            attack_type_predicted=attack_type_label,
+            dqn_action=dqn_action_label,
+            incident_id=incident.id,
+        )
 
-    logger.info(
-        "Incident %d persisted  is_anomaly=%s  action=%s",
-        incident.id,
-        is_anomaly,
-        dqn_action,
-    )
+    except Exception as exc:
+        logger.exception("Prediction pipeline failed: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Inference error: {exc}") from exc
 
-    # ── Broadcast anomaly alert over WebSocket ────────────────────────────────
-    if is_anomaly and manager.active_count > 0:
-        alert_payload = IncidentOut.model_validate(incident).model_dump(mode="json")
-        await manager.broadcast(alert_payload)
-        logger.debug("Alert broadcast to %d WebSocket client(s).", manager.active_count)
-
-    # ── Return response ───────────────────────────────────────────────────────
-    return PredictResponse(
-        reconstruction_error=reconstruction_error,
-        is_anomaly=is_anomaly,
-        attack_type_predicted=attack_type_predicted,
-        dqn_action=dqn_action,
-        incident_id=incident.id,
-    )
