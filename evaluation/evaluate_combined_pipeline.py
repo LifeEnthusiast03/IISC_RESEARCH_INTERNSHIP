@@ -45,18 +45,19 @@ import json
 import logging
 
 import numpy as np
+import sklearn
 import torch
 import joblib
 
 # ─────────────────────────────────────────────
 # Path anchoring — same pattern as train_autoencoder.py
 # ─────────────────────────────────────────────
-_SCRIPT_DIR   = os.path.dirname(os.path.abspath(__file__))   # .../training/
+_SCRIPT_DIR   = os.path.dirname(os.path.abspath(__file__))   # .../evaluation/
 _PROJECT_ROOT = os.path.dirname(_SCRIPT_DIR)                 # .../IISC_RESEARCH_INTERNSHIP/
 
 # Make train_autoencoder importable (for Autoencoder class +
 # compute_reconstruction_errors helper)
-sys.path.insert(0, _SCRIPT_DIR)
+sys.path.insert(0, os.path.join(_PROJECT_ROOT, "training"))
 from train_autoencoder import Autoencoder, compute_reconstruction_errors  # noqa: E402
 
 DATA_DIR  = os.path.join(_PROJECT_ROOT, "data",   "processed")
@@ -71,11 +72,9 @@ UNRELIABLE_N_THRESHOLD = 50   # n < this threshold → unreliable flag
 # ─────────────────────────────────────────────
 # Logging  (console, UTF-8 safe)
 # ─────────────────────────────────────────────
-_stream_handler = logging.StreamHandler()
-_stream_handler.stream = open(
-    _stream_handler.stream.fileno(),
-    mode="w", encoding="utf-8", closefd=False, buffering=1,
-)
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
+_stream_handler = logging.StreamHandler(sys.stderr)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)s  %(message)s",
