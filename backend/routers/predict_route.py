@@ -23,8 +23,21 @@ an informative message rather than crashing.
 
 from __future__ import annotations
 
+import json
 import logging
+import asyncio
 from datetime import datetime, timezone
+from pathlib import Path
+
+# Load attack type label map once at startup
+LABEL_MAP_PATH = Path("data/processed/attack_type_label_map.json")
+ATTACK_TYPE_MAP: dict[str, str] = {}
+try:
+    if LABEL_MAP_PATH.exists():
+        with open(LABEL_MAP_PATH, "r") as f:
+            ATTACK_TYPE_MAP = json.load(f)
+except Exception as e:
+    pass
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -72,8 +85,22 @@ async def predict(
     try:
         # -- Stage 1: Anomaly detection ----------------------------------------
         # detect_anomaly() expects list[float] -- extract from the FlowFeatures model
-        anomaly_result: AnomalyDetectionResult = detect_anomaly(payload.features)
 
+        # 1.websocket broadcast for request come 
+        await manager.broadcast({
+            "event": "info",
+            "message": f"Analyzing incoming flow from {payload.source_ip}:{payload.src_port} -> {payload.dest_ip}:{payload.dst_port}"
+        })
+        await asyncio.sleep(0.2)
+        
+        anomaly_result: AnomalyDetectionResult = detect_anomaly(payload.features)
+        
+        # 2.websocker broadcast for anomaly classification done 
+        await manager.broadcast({
+            "event": "info",
+            "message": f"Autoencoder analysis complete. Recon error: {anomaly_result.reconstruction_error:.6f} | Anomaly: {anomaly_result.is_anomaly}"
+        })
+        await asyncio.sleep(0.2)
         is_anomaly        = anomaly_result.is_anomaly
         attack_type_label: str | None  = None
         dqn_action_label:  str | None  = None
@@ -82,6 +109,7 @@ async def predict(
             # -- Stage 2: Attack-type classification ---------------------------
             # identify_attack() expects dict[str, float] (named features).
             # We generate synthetic feature names f0..f114 preserving order.
+
             print(anomaly_result.attack_type)
             named_features: dict[str, float] = {
                 f"f{i}": v for i, v in enumerate(payload.features)
@@ -89,6 +117,14 @@ async def predict(
             attack_type_result: AttackTypeResult = identify_attack(named_features)
             attack_type_label = attack_type_result.attack_type
             print(attack_type_result.attack_type)
+            
+            #3.websocket broadcast for attack type detection
+            await manager.broadcast({
+                "event": "info",
+                "message": f"Attack classifier identified: {attack_type_result.attack_type} (Confidence: {attack_type_result.attack_type_confidence:.2f})"
+            })
+            await asyncio.sleep(0.2)
+
             # -- Stage 3: DQN remediation suggestion ---------------------------
             # attack_type_probs is list[float]; extract values from the dict in order
             dqn_req = DQNSuggestionRequest(
@@ -100,6 +136,13 @@ async def predict(
             )
             dqn_result: DQNSuggestionResult = suggest_action(dqn_req)
             dqn_action_label = dqn_result.recommended_action
+            
+            #4.websocket broadcast for dqn action suggestion
+            await manager.broadcast({
+                "event": "action",
+                "message": f"DQN agent recommends remediation action: {dqn_result.recommended_action}"
+            })
+            await asyncio.sleep(0.2)
 
         # -- Persist Incident row (always -- benign baseline is useful) ---------
         incident = Incident(
@@ -126,7 +169,7 @@ async def predict(
                 "incident_id":    incident.id,
                 "source_ip":      incident.source_ip,
                 "dest_ip":        incident.dest_ip,
-                "attack_type":    attack_type_label,
+                "attack_type":    ATTACK_TYPE_MAP.get(str(attack_type_label), str(attack_type_label)) if attack_type_label is not None else None,
                 "dqn_action":     dqn_action_label,
                 "recon_error":    round(anomaly_result.reconstruction_error, 6),
                 "timestamp":      incident.timestamp.isoformat(),
