@@ -1296,6 +1296,22 @@ The file had accumulated Mojibake across multiple sessions where UTF-8 bytes wer
 
 ---
 
+### 📅 07 July 2026 — Frontend UI Refactoring, Live Dashboard Enhancements & Streaming Delay
+
+**Topics covered:**
+- Redesigned the primary application layout into a true multi-page architecture (`RootLayout`, `HomePage`, `IncidentsPage`, `TerminalPage`, `AnalyticsPage`).
+- Enhanced the UI aesthetic with a floating, frosted-glass Navbar that dynamically reacts to scroll.
+- Introduced a 200ms `asyncio.sleep(0.2)` inter-stage delay into the `predict_route.py` FastApi backend. This slows the processing just enough to visualize the pipeline steps streaming across the frontend terminal.
+- Built a highly robust WebSocket log parser (`lib/logFormatter.ts`) that intercepts the raw JSON payloads and converts them into structured, color-coded, human-readable terminal lines (e.g. `15:52:26.123 [ANOMALY] 192.168.1.45 → 10.0.0.12 | recon_error=0.0721`).
+- Upgraded the `TerminalLine` component to support an interactive UI: clicking on any formatted terminal log drops down a `<pre>` block displaying the original raw JSON payload.
+- Integrated `attack_type_label_map.json` directly into the `IncidentsPage` frontend to properly decode numeric attack IDs back into readable names.
+
+**Key achievements:**
+- Transitioned the app from a single-page prototype to a scalable multi-page dashboard.
+- Solved the "JSON dump" problem in the terminal view by successfully bridging the raw technical data with a beautiful, SOC-analyst-friendly UI, without losing access to the raw payload data.
+- Stabilized the frontend WebSocket context manager to efficiently handle 500+ messages in memory using the new lightweight `FormattedLog` interface.
+
+---
 
 ## System Architecture
 
@@ -1617,4 +1633,4 @@ streamlit run simulator/streamlit_app.py
 
 ---
 
-*README last updated: 1 July 2026 — Backend refactored into `db/`, `routers/`, `websocket/`, and `models/` sub-packages; all routers renamed to `*_route.py`; `ConnectionManager` extracted to `websocket/connection.py`; 4-model startup loader implemented in `backend/models/init_models.py`; Project Structure section updated to match actual directory layout.*
+*README last updated: 7 July 2026 — Implemented multi-page UI architecture with floating navbar, structured terminal log parsing with JSON expansion, and backend streaming delays.*
