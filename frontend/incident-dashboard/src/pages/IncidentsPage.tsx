@@ -12,6 +12,12 @@ import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertTriangle, Searc
 import { useIncidents } from '../hooks/useIncidents'
 import { StatusPill } from '../components/StatusPill'
 import type { IncidentOut } from '../lib/api'
+import ATTACK_TYPE_MAP from '../lib/attack_type_label_map.json'
+
+function getAttackLabel(typeId: string | null | undefined): string | null {
+  if (!typeId) return null
+  return (ATTACK_TYPE_MAP as Record<string, string>)[typeId] || typeId
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -70,7 +76,7 @@ function ExpandedDetail({ incident }: { incident: IncidentOut }) {
               ['Dest IP',          `${incident.dest_ip}:${incident.dst_port ?? '?'}`],
               ['Is Anomaly',       incident.is_anomaly ? 'YES' : 'NO'],
               ['Recon Error',      incident.reconstruction_error.toFixed(6)],
-              ['Attack Type',      incident.attack_type_predicted ?? '—'],
+              ['Attack Type',      getAttackLabel(incident.attack_type_predicted) ?? '—'],
               ['DQN Action',       incident.dqn_action ?? '—'],
               ['Action Status',    incident.action_status],
               ['Created At',       format(new Date(incident.created_at), 'yyyy-MM-dd HH:mm:ss')],
@@ -123,7 +129,7 @@ export default function IncidentsPage() {
   // Unique attack types for filter dropdown (from current page)
   const attackTypes = useMemo(() => {
     if (!data) return []
-    const types = [...new Set(data.items.map(i => i.attack_type_predicted).filter(Boolean))]
+    const types = [...new Set(data.items.map(i => getAttackLabel(i.attack_type_predicted)).filter(Boolean))]
     return types as string[]
   }, [data])
 
@@ -131,7 +137,8 @@ export default function IncidentsPage() {
   const filteredItems = useMemo(() => {
     if (!data) return []
     return data.items.filter(item => {
-      const matchType = !attackFilter || item.attack_type_predicted === attackFilter
+      const mappedLabel = getAttackLabel(item.attack_type_predicted)
+      const matchType = !attackFilter || mappedLabel === attackFilter
       const matchIp = !ipSearch || item.source_ip.includes(ipSearch) || item.dest_ip.includes(ipSearch)
       return matchType && matchIp
     })
@@ -308,7 +315,7 @@ export default function IncidentsPage() {
 
                       {/* Attack type */}
                       <td className="px-4 py-3 text-xs" style={{ color: 'var(--col-amber)' }}>
-                        {incident.attack_type_predicted ?? <span className="opacity-30">Benign</span>}
+                        {getAttackLabel(incident.attack_type_predicted) ?? <span className="opacity-30">Benign</span>}
                       </td>
 
                       {/* Recon error */}

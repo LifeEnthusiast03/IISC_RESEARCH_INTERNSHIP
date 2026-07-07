@@ -59,7 +59,7 @@ export function WsMessageFeed({ messages, onClear }: Props) {
       {/* Message cards */}
       <div className="flex flex-col gap-2 max-h-[480px] overflow-y-auto pr-1">
         {sorted.map((msg) => {
-          const event = typeof msg.data === 'object' ? msg.data?.event : undefined
+          const event = msg.level
           const colorCls = eventColor(event)
 
           return (
@@ -70,7 +70,7 @@ export function WsMessageFeed({ messages, onClear }: Props) {
               {/* Top row: timestamp + event badge */}
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs text-slate-500 font-mono">
-                  {msg.receivedAt.toLocaleTimeString()}
+                  {msg.timeLabel}
                 </span>
                 {event && (
                   <span className={`text-xs font-bold uppercase tracking-wider ${colorCls}`}>
@@ -81,9 +81,7 @@ export function WsMessageFeed({ messages, onClear }: Props) {
 
               {/* Payload */}
               <pre className="text-xs text-slate-200 font-mono whitespace-pre-wrap break-words leading-relaxed">
-                {typeof msg.data === 'object'
-                  ? JSON.stringify(msg.data, null, 2)
-                  : String(msg.data)}
+                {msg.text}
               </pre>
             </div>
           )

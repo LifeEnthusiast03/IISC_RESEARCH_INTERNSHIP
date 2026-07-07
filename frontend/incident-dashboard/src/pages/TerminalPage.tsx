@@ -15,31 +15,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { Terminal, Wifi, WifiOff, Trash2, PauseCircle, PlayCircle } from 'lucide-react'
 import { useWsContext } from '../contexts/WsContext'
-import { TerminalLine, type LineType } from '../components/TerminalLine'
+import { TerminalLine } from '../components/TerminalLine'
 import { StatusPill } from '../components/StatusPill'
 import { WS_BASE_URL } from '../lib/api'
 import type { WsStatus } from '../hooks/useWebSocket'
 
 const WS_URL = `${WS_BASE_URL}/ws/connect`
 
+import { format } from 'date-fns'
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function resolveLineType(data: unknown): LineType {
-  if (typeof data !== 'object' || data === null) return 'info'
-  const d = data as Record<string, unknown>
-  const t = (d.type ?? d.event ?? d.severity ?? '') as string
-  if (['anomaly', 'threat', 'intrusion'].includes(t.toLowerCase())) return 'anomaly'
-  if (['alert', 'critical', 'warning'].includes(t.toLowerCase()))    return 'alert'
-  if (['action', 'remediation', 'block'].includes(t.toLowerCase()))  return 'action'
-  if (['connected', 'success', 'ok'].includes(t.toLowerCase()))      return 'connected'
-  if (d.is_anomaly === true) return 'anomaly'
-  return 'info'
-}
-
-function formatPayload(data: unknown): string {
-  if (typeof data === 'string') return data
-  return JSON.stringify(data, null, 2)
-}
 
 function wsVariant(status: WsStatus) {
   if (status === 'connected')   return 'green'  as const
@@ -62,6 +47,24 @@ export default function TerminalPage() {
       bottomRef.current.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages, paused])
+
+  const bootLog = {
+    id: 'boot',
+    level: 'system' as const,
+    timestamp: new Date().toISOString(),
+    timeLabel: format(new Date(), 'HH:mm:ss.SSS'),
+    text: `ThreatSentinel IDS Terminal — ${WS_URL}`,
+    raw: null
+  }
+
+  const statusLog = {
+    id: 'status',
+    level: status === 'connected' ? 'connected' as const : 'system' as const,
+    timestamp: new Date().toISOString(),
+    timeLabel: format(new Date(), 'HH:mm:ss.SSS'),
+    text: `WebSocket ${status === 'connected' ? 'CONNECTED' : status.toUpperCase()} — auto-reconnect with exponential backoff enabled`,
+    raw: null
+  }
 
   return (
     <div
@@ -161,14 +164,10 @@ export default function TerminalPage() {
         style={{ background: '#020408' }}
       >
         {/* System boot line */}
-        <TerminalLine timestamp={new Date()} type="system">
-          ThreatSentinel IDS Terminal — {WS_URL}
-        </TerminalLine>
+        <TerminalLine log={bootLog} />
 
         {/* Connection status line */}
-        <TerminalLine timestamp={new Date()} type={status === 'connected' ? 'connected' : 'system'}>
-          WebSocket {status === 'connected' ? 'CONNECTED' : status.toUpperCase()} — auto-reconnect with exponential backoff enabled
-        </TerminalLine>
+        <TerminalLine log={statusLog} />
 
         {/* Divider */}
         <div className="py-1">
@@ -192,11 +191,9 @@ export default function TerminalPage() {
         {messages.map(msg => (
           <TerminalLine
             key={msg.id}
-            timestamp={msg.receivedAt}
-            type={resolveLineType(msg.data)}
-          >
-            {formatPayload(msg.data)}
-          </TerminalLine>
+            log={msg}
+            animate={Date.now() - new Date(msg.timestamp).getTime() < 1000}
+          />
         ))}
 
         {/* Scroll anchor */}

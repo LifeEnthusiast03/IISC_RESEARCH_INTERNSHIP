@@ -20,56 +20,44 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { WS_BASE_URL } from '../lib/api'
+import { formatLogMessage, type FormattedLog } from '../lib/logFormatter'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type WsStatus = 'connecting' | 'connected' | 'disconnected' | 'error'
 
-export interface WsMessage {
-  /** Monotonically increasing id so React keys stay stable */
-  id: number
-  /** Browser timestamp when the message arrived */
-  receivedAt: Date
-  /** Parsed JSON payload (or raw string if not valid JSON) */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data: any
-}
+export type WsMessage = FormattedLog // keep export for compatibility if needed, though we use FormattedLog
 
 interface UseWebSocketReturn {
   status: WsStatus
-  messages: WsMessage[]
-  lastMessage: WsMessage | null
+  messages: FormattedLog[]
+  lastMessage: FormattedLog | null
   clearMessages: () => void
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const WS_URL = `${WS_BASE_URL}/ws/connect`
-const MAX_MESSAGES = 200          // keep last N messages in state
+const MAX_MESSAGES = 500         // keep last N messages in state
 const INITIAL_RETRY_MS = 1_000   // 1 s first retry
 const MAX_RETRY_MS = 30_000      // cap at 30 s
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
-let _msgId = 0
 
 export function useWebSocket(): UseWebSocketReturn {
   const [status, setStatus] = useState<WsStatus>('connecting')
-  const [messages, setMessages] = useState<WsMessage[]>([])
-  const [lastMessage, setLastMessage] = useState<WsMessage | null>(null)
+  const [messages, setMessages] = useState<FormattedLog[]>([])
+  const [lastMessage, setLastMessage] = useState<FormattedLog | null>(null)
 
   const queryClient = useQueryClient()
 
   const wsRef        = useRef<WebSocket | null>(null)
   const retryMsRef   = useRef(INITIAL_RETRY_MS)
   const timerRef     = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const unmountedRef = useRef(false)
 
   const pushMessage = useCallback((raw: string) => {
-    let data: unknown
-    try { data = JSON.parse(raw) } catch { data = raw }
-
-    const msg: WsMessage = { id: ++_msgId, receivedAt: new Date(), data }
+    const msg = formatLogMessage(raw)
     setMessages(prev => [...prev.slice(-MAX_MESSAGES + 1), msg])
     setLastMessage(msg)
 
@@ -78,28 +66,28 @@ export function useWebSocket(): UseWebSocketReturn {
   }, [queryClient])
 
   const connect = useCallback(() => {
-    if (unmountedRef.current) return
-
     setStatus('connecting')
     const ws = new WebSocket(WS_URL)
     wsRef.current = ws
 
     ws.onopen = () => {
-      if (unmountedRef.current) { ws.close(); return }
+      if (wsRef.current !== ws) { ws.close(); return }
       setStatus('connected')
       retryMsRef.current = INITIAL_RETRY_MS   // reset backoff on success
     }
 
     ws.onmessage = (evt: MessageEvent<string>) => {
-      if (!unmountedRef.current) pushMessage(evt.data)
+      if (wsRef.current !== ws) return
+      pushMessage(evt.data)
     }
 
     ws.onerror = () => {
-      if (!unmountedRef.current) setStatus('error')
+      if (wsRef.current !== ws) return
+      setStatus('error')
     }
 
     ws.onclose = () => {
-      if (unmountedRef.current) return
+      if (wsRef.current !== ws) return
       setStatus('disconnected')
       // Exponential backoff retry
       timerRef.current = setTimeout(() => {
@@ -110,13 +98,14 @@ export function useWebSocket(): UseWebSocketReturn {
   }, [pushMessage])
 
   useEffect(() => {
-    unmountedRef.current = false
     connect()
 
     return () => {
-      unmountedRef.current = true
       if (timerRef.current) clearTimeout(timerRef.current)
-      wsRef.current?.close()
+      if (wsRef.current) {
+        wsRef.current.close()
+        wsRef.current = null
+      }
     }
   }, [connect])
 
