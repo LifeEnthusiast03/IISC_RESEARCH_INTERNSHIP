@@ -8,13 +8,18 @@
  * --------
  * - Connects on mount, cleans up on unmount
  * - Auto-reconnects with exponential backoff (max 30 s) after any disconnect
+ * - On each new message, invalidates the ['incidents'] React Query cache so
+ *   the Incidents and Analytics pages automatically refresh
  * - Exposes:
- *     status   : 'connecting' | 'connected' | 'disconnected' | 'error'
- *     messages : chronological list of every JSON message received
+ *     status      : 'connecting' | 'connected' | 'disconnected' | 'error'
+ *     messages    : chronological list of every JSON message received
+ *     lastMessage : most recent WsMessage (or null before first message)
  *     clearMessages : empties the message history
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { WS_BASE_URL } from '../lib/api'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -33,12 +38,13 @@ export interface WsMessage {
 interface UseWebSocketReturn {
   status: WsStatus
   messages: WsMessage[]
+  lastMessage: WsMessage | null
   clearMessages: () => void
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const WS_URL = 'ws://localhost:8000/ws/connect'
+const WS_URL = `${WS_BASE_URL}/ws/connect`
 const MAX_MESSAGES = 200          // keep last N messages in state
 const INITIAL_RETRY_MS = 1_000   // 1 s first retry
 const MAX_RETRY_MS = 30_000      // cap at 30 s
@@ -50,6 +56,9 @@ let _msgId = 0
 export function useWebSocket(): UseWebSocketReturn {
   const [status, setStatus] = useState<WsStatus>('connecting')
   const [messages, setMessages] = useState<WsMessage[]>([])
+  const [lastMessage, setLastMessage] = useState<WsMessage | null>(null)
+
+  const queryClient = useQueryClient()
 
   const wsRef        = useRef<WebSocket | null>(null)
   const retryMsRef   = useRef(INITIAL_RETRY_MS)
@@ -62,7 +71,11 @@ export function useWebSocket(): UseWebSocketReturn {
 
     const msg: WsMessage = { id: ++_msgId, receivedAt: new Date(), data }
     setMessages(prev => [...prev.slice(-MAX_MESSAGES + 1), msg])
-  }, [])
+    setLastMessage(msg)
+
+    // Keep React Query cache fresh whenever a live alert arrives
+    queryClient.invalidateQueries({ queryKey: ['incidents'] })
+  }, [queryClient])
 
   const connect = useCallback(() => {
     if (unmountedRef.current) return
@@ -109,5 +122,5 @@ export function useWebSocket(): UseWebSocketReturn {
 
   const clearMessages = useCallback(() => setMessages([]), [])
 
-  return { status, messages, clearMessages }
+  return { status, messages, lastMessage, clearMessages }
 }
