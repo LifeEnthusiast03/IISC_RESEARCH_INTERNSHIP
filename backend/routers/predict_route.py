@@ -29,6 +29,9 @@ import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
 
+from backend.agent.pipeline_runner import run_and_broadcast
+from backend.schemas import IncidentContext
+
 # Load attack type label map once at startup
 LABEL_MAP_PATH = Path("data/processed/attack_type_label_map.json")
 ATTACK_TYPE_MAP: dict[str, str] = {}
@@ -174,7 +177,38 @@ async def predict(
                 "recon_error":    round(anomaly_result.reconstruction_error, 6),
                 "timestamp":      incident.timestamp.isoformat(),
             })
+        # -- Agent invocation (Background Task) ---------------------------------
+        if is_anomaly:
+            # Extract confidence scores if available from your model predictions
+            # For now, we pass them as None if not easily accessible in this scope.
 
+            # just boradcast a message there that agent invocation has been done 
+            await manager.broadcast({
+                "event":          "agent_invocation",
+                "incident_id":    incident.id,
+                "source_ip":      incident.source_ip,
+                "dest_ip":        incident.dest_ip,
+                "attack_type":    ATTACK_TYPE_MAP.get(str(attack_type_label), str(attack_type_label)) if attack_type_label is not None else None,
+                "dqn_action":     dqn_action_label,
+                "recon_error":    round(anomaly_result.reconstruction_error, 6),
+                "timestamp":      incident.timestamp.isoformat(),
+            })
+            agent_context = IncidentContext(
+                source_ip=payload.source_ip or "0.0.0.0",
+                dest_ip=payload.dest_ip or "0.0.0.0",
+                src_port=payload.src_port,
+                dst_port=payload.dst_port,
+                recon_error=anomaly_result.reconstruction_error,
+                is_anomaly=is_anomaly,
+                attack_type=ATTACK_TYPE_MAP.get(str(attack_type_label), str(attack_type_label)) if attack_type_label is not None else None,
+                dqn_action=dqn_action_label,
+                incident_id=incident.id,
+                raw_features=payload.features,
+            )
+            
+            # Fire-and-forget: run the agent pipeline and broadcast its result
+            asyncio.create_task(run_and_broadcast(agent_context))
+            
         # -- Return response ----------------------------------------------------
         return PredictResponse(
             reconstruction_error=anomaly_result.reconstruction_error,
@@ -183,6 +217,7 @@ async def predict(
             dqn_action=dqn_action_label,
             incident_id=incident.id,
         )
+
 
     except Exception as exc:
         logger.exception("Prediction pipeline failed: %s", exc)
