@@ -611,3 +611,127 @@ class DQNSuggestionResult(BaseModel):
             }
         },
     )
+
+
+# ── Agent orchestration schemas ───────────────────────────────────────────────
+
+class IncidentContext(BaseModel):
+    """
+    Unified incident payload produced by the ML pipeline and consumed by every
+    agent in the orchestration system.
+
+    This object is constructed from the pipeline outputs
+    (anomaly classifier → attack type NN → DQN) and passed as the user
+    message string to the Manager Agent.
+    """
+
+    # ── Network metadata ──────────────────────────────────────────────────────
+    source_ip: str = Field(..., description="Source IP address of the suspicious flow.")
+    dest_ip: str = Field(..., description="Destination IP address of the suspicious flow.")
+    src_port: int | None = Field(None, ge=0, le=65535, description="Source TCP/UDP port.")
+    dst_port: int | None = Field(None, ge=0, le=65535, description="Destination TCP/UDP port.")
+
+    # ── Anomaly detection output (Stage 1 — Autoencoder) ─────────────────────
+    recon_error: float = Field(
+        ...,
+        ge=0.0,
+        description=(
+            "Autoencoder mean-squared reconstruction error. "
+            "Higher = more anomalous. Compared against anomaly_threshold."
+        ),
+    )
+    anomaly_threshold: float = Field(
+        0.05,
+        ge=0.0,
+        description="Decision boundary for the autoencoder gate.",
+    )
+    is_anomaly: bool = Field(
+        ...,
+        description="True when recon_error > anomaly_threshold.",
+    )
+
+    # ── Attack type classification (Stage 2 — Attack Type NN) ─────────────────
+    attack_type: str | None = Field(
+        None,
+        description=(
+            "Attack category predicted by the attack_type_nn. "
+            "One of: DoS_Hulk | Port_Scan | DDoS_LOIT | FTP-Patator | "
+            "DoS_GoldenEye | DoS_Slowhttptest | SSH-Patator | Botnet_ARES | "
+            "DoS_Slowloris | Web_Brute_Force | Web_XSS | Web_SQL_Injection | "
+            "Heartbleed. None for benign traffic."
+        ),
+    )
+    attack_confidence: float | None = Field(
+        None,
+        ge=0.0,
+        le=1.0,
+        description="Softmax probability (0-1) for the predicted attack_type.",
+    )
+
+    # ── DQN remediation suggestion (Stage 3 — DQN Agent) ────────────────────
+    dqn_action: str | None = Field(
+        None,
+        description=(
+            "Remediation action recommended by the DQN agent. "
+            "One of: Block IP | Revoke Credentials | Isolate Server | "
+            "Kill Process | Monitor."
+        ),
+    )
+    dqn_confidence: float | None = Field(
+        None,
+        ge=0.0,
+        le=1.0,
+        description="Softmax probability of the DQN's top action.",
+    )
+
+    # ── Optional context ──────────────────────────────────────────────────────
+    incident_id: int | None = Field(
+        None,
+        description="Database primary key of the persisted Incident row (if stored).",
+    )
+    timestamp: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="UTC timestamp when the incident was detected.",
+    )
+    raw_features: list[float] | None = Field(
+        None,
+        description="Optional: the raw 115-dim flow feature vector (for debugging).",
+    )
+
+    model_config = ConfigDict(from_attributes=True)
+
+    # ── Serialisation helper ──────────────────────────────────────────────────
+    def to_agent_message(self) -> str:
+        """Return a human-readable summary string suitable as an LLM user message."""
+        return (
+            f"INCIDENT DETECTED\n"
+            f"=================\n"
+            f"Timestamp       : {self.timestamp.isoformat()}\n"
+            f"Source IP       : {self.source_ip}  Port: {self.src_port}\n"
+            f"Destination IP  : {self.dest_ip}  Port: {self.dst_port}\n"
+            f"Recon Error     : {self.recon_error:.6f}  (threshold={self.anomaly_threshold})\n"
+            f"Is Anomaly      : {self.is_anomaly}\n"
+            f"Attack Type     : {self.attack_type or 'Unknown'}  "
+            f"(confidence={self.attack_confidence or 0:.2%})\n"
+            f"DQN Action      : {self.dqn_action or 'None'}  "
+            f"(confidence={self.dqn_confidence or 0:.2%})\n"
+            f"Incident ID     : {self.incident_id or 'N/A'}\n"
+        )
+
+
+class AgentResult(BaseModel):
+    """
+    Standardised response returned by the agent orchestrator after the full
+    agent pipeline completes.
+    """
+
+    incident_id: int | None = None
+    attack_type: str | None = None
+    handling_agent: str = Field(..., description="Name of the specialist agent that handled the incident.")
+    actions_taken: list[str] = Field(default_factory=list, description="List of tool actions executed.")
+    final_response: str = Field(..., description="Natural-language summary from the specialist agent.")
+    email_sent: bool = False
+    broadcast_sent: bool = False
+    metadata: dict = Field(default_factory=dict)
+
+    model_config = ConfigDict(from_attributes=True)
