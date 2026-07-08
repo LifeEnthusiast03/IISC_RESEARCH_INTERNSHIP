@@ -28,7 +28,6 @@ Traditional cyber defense relies on human analysts who take hours to respond to 
 
 ### The Two-Stage Pipeline
 
-```
 Replay Simulator (CICIDS2017 CSV rows sent as live HTTP POST)
        │  POST /predict  (raw 115-feature flow + metadata)
        ▼
@@ -47,23 +46,39 @@ Replay Simulator (CICIDS2017 CSV rows sent as live HTTP POST)
           │
           ▼
 ┌─────────────────────┐
-│  Stage 2            │   Selects from 5 actions:
-│  DQN Agent          │   Block IP / Revoke creds /
-│  (Auto-Remediation) │   Isolate server / Kill process / Monitor
+│  Stage 2            │   Attack-type NN classifies the attack:
+│  Attack-Type NN     │   DoS_Hulk / DDoS_LOIT / Port_Scan /
+│  + DQN Agent        │   Botnet_ARES / Heartbleed / etc.
+│  (Auto-Remediation) │   DQN selects: Block IP / Isolate / Monitor
 └─────────┬───────────┘
-          │
+          │  WebSocket: broadcast anomaly event
+          │  asyncio.create_task → fire-and-forget
           ▼
 ┌─────────────────────────────────────────────────────┐
-│  Dummy Action Executor                              │
-│  Simulated network state dict (IP → status)         │
-│  No real firewall/router — demo-safe                │
+│  Stage 3 — Multi-Agent Orchestration (openai-agents)│
+│                                                     │
+│  ManagerAgent (GPT-4o)                              │
+│    └─ Routes by attack_type → specialist agent      │
+│                                                     │
+│  13 Specialist Agents (GPT-4o-mini each):           │
+│  DoSHulk / DDoSLOIT / PortScan / Botnet_ARES /     │
+│  FTP-Patator / SSH-Patator / DoSGoldenEye /         │
+│  DoSSlowloris / DoSSlowHTTPTest / Web Brute Force / │
+│  Web XSS / Web SQLi / Heartbleed                    │
+│                                                     │
+│  Each specialist calls domain tools:                │
+│  block_ip_address / isolate_server / revoke_creds / │
+│  kill_process / rotate_tls / etc.                   │
+│  → tool bodies run locally on YOUR machine          │
+│  → broadcast_alert_to_client() → WebSocket          │
 └─────────┬───────────────────────────────────────────┘
-          │
+          │  WebSocket: broadcast agent_response event
+          │  (handling_agent, final_response, actions)
           ▼
    PostgreSQL + WebSocket broadcast
           │
           ▼
-   React Dashboard (live alert feed + network status map)
+   React Dashboard (live alert feed + AI agent reasoning)
 ```
 
 ---
@@ -1547,8 +1562,26 @@ project/
 ├── backend/
 │   ├── main.py                     # FastAPI app entrypoint + lifespan startup
 │   ├── inference.py                # inference logic stubs
-│   ├── schemas.py                  # Pydantic request/response models
+│   ├── schemas.py                  # Pydantic request/response models (incl. IncidentContext, AgentResult)
 │   ├── __init__.py
+│   ├── agent/                      # ✨ NEW — Multi-Agent Orchestration Layer (openai-agents)
+│   │   ├── manager_agent.py        # ManagerAgent (GPT-4o) — routes by attack_type
+│   │   ├── orchestrator.py         # run_agent_pipeline() — main public API
+│   │   ├── pipeline_runner.py      # run_and_broadcast() — bg task bridge to predict_route
+│   │   ├── shared_tools.py         # broadcast_alert_to_client(), log_incident_action()
+│   │   ├── dos_hulk_agent.py       # DoSHulkSpecialistAgent
+│   │   ├── ddos_loit_agent.py      # DDoSLOITSpecialistAgent
+│   │   ├── port_scan_agent.py      # PortScanSpecialistAgent
+│   │   ├── ftp_patator_agent.py    # FTPPatatorSpecialistAgent
+│   │   ├── ssh_patator_agent.py    # SSHPatatorSpecialistAgent
+│   │   ├── dos_goldeneye_agent.py  # DoSGoldenEyeSpecialistAgent
+│   │   ├── dos_slowhttptest_agent.py
+│   │   ├── dos_slowloris_agent.py
+│   │   ├── botnet_ares_agent.py    # BotnetARESSpecialistAgent
+│   │   ├── web_bruteforce_agent.py
+│   │   ├── web_xss_agent.py
+│   │   ├── web_sqli_agent.py
+│   │   └── heartbleed_agent.py     # HeartbleedSpecialistAgent
 │   ├── db/                         # Database layer
 │   │   ├── database.py             # Engine, SessionLocal, check_db_connection()
 │   │   ├── database_models.py      # SQLAlchemy ORM: Incident table + Base
@@ -1633,4 +1666,4 @@ streamlit run simulator/streamlit_app.py
 
 ---
 
-*README last updated: 7 July 2026 — Implemented multi-page UI architecture with floating navbar, structured terminal log parsing with JSON expansion, and backend streaming delays.*
+*README last updated: 8 July 2026 — Implemented Stage 3 Multi-Agent Orchestration using openai-agents SDK. ManagerAgent (GPT-4o) routes anomalies by attack_type to 13 GPT-4o-mini specialist agents (DoSHulk, DDoSLOIT, PortScan, FTP-Patator, SSH-Patator, DoSGoldenEye, DoSSlowHTTPTest, DoSSlowloris, BotnetARES, WebBruteForce, WebXSS, WebSQLi, Heartbleed). Each specialist enforces tool_choice="required" — LLM must execute domain tools before responding. Pipeline fires as a background asyncio task from /predict via pipeline_runner.py and broadcasts agent_response / agent_error events over WebSocket. All tool executions push real-time security alerts to the React dashboard via broadcast_alert_to_client().*
