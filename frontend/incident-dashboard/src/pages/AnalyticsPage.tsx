@@ -23,6 +23,7 @@ import { format } from 'date-fns'
 import { TrendingUp, PieChart as PieIcon, BarChart2 } from 'lucide-react'
 import { useIncidentsAnalytics } from '../hooks/useIncidents'
 import { StatusPill } from '../components/StatusPill'
+import ATTACK_LABEL_MAP from '../lib/attack_type_label_map.json'
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 
@@ -105,8 +106,12 @@ export default function AnalyticsPage() {
     if (!data) return []
     const counts: Record<string, number> = {}
     for (const item of data.items) {
-      const key = item.attack_type_predicted ?? 'Benign'
-      counts[key] = (counts[key] ?? 0) + 1
+      // Resolve numeric ID → human name; fall back to raw value or 'Benign'
+      const raw = item.attack_type_predicted
+      const label = raw != null
+        ? (ATTACK_LABEL_MAP as Record<string, string>)[String(raw)] ?? String(raw)
+        : 'Benign'
+      counts[label] = (counts[label] ?? 0) + 1
     }
     return Object.entries(counts)
       .sort((a, b) => b[1] - a[1])

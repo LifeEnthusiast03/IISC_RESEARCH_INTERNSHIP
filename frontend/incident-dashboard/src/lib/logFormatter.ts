@@ -1,5 +1,38 @@
 import { format } from 'date-fns'
 
+/**
+ * Convert a Markdown string into clean plain-text suitable for a terminal.
+ * Handles: headings, bold, italic, inline-code, horizontal rules, ordered +
+ * unordered lists, and trailing whitespace.
+ */
+function stripMarkdown(md: string): string {
+  return md
+    .split('\n')
+    .map(line => {
+      // H3 / H2 / H1 → UPPERCASE LABEL
+      line = line.replace(/^###\s+(.*)/, (_, t) => `── ${t.toUpperCase()} ──`)
+      line = line.replace(/^##\s+(.*)/, (_, t)  => `━━ ${t.toUpperCase()} ━━`)
+      line = line.replace(/^#\s+(.*)/, (_, t)   => `▶ ${t.toUpperCase()}`)
+      // Horizontal rules
+      line = line.replace(/^[-*_]{3,}\s*$/, '─────────────────────────────')
+      // Unordered list bullets
+      line = line.replace(/^\s*[-*+]\s+/, '  • ')
+      // Ordered list
+      line = line.replace(/^\s*(\d+)\.\s+/, (_, n) => `  ${n}. `)
+      // Bold+italic, bold, italic, inline-code → plain
+      line = line.replace(/\*\*\*(.+?)\*\*\*/g, '$1')
+      line = line.replace(/\*\*(.+?)\*\*/g,   '$1')
+      line = line.replace(/\*(.+?)\*/g,       '$1')
+      line = line.replace(/_(.+?)_/g,         '$1')
+      line = line.replace(/`(.+?)`/g,         '$1')
+      return line
+    })
+    .join('\n')
+    // Collapse 3+ consecutive blank lines to 2
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 export type LogLevel = 'info' | 'anomaly' | 'action' | 'warning' | 'error' | 'connected' | 'system'
 
 export interface FormattedLog {
@@ -51,16 +84,19 @@ export function formatLogMessage(rawMessage: string | object | any): FormattedLo
 
   const timeLabel = format(dateObj, 'HH:mm:ss.SSS')
 
-  // Resolve level
+  // Resolve level — extended with agent event types
   let level: LogLevel = 'info'
   if (parsed && typeof parsed === 'object') {
     const t = (parsed.type ?? parsed.event ?? parsed.severity ?? '').toLowerCase()
-    if (['anomaly', 'threat', 'intrusion'].includes(t)) level = 'anomaly'
-    else if (['warning', 'alert', 'critical'].includes(t)) level = 'warning'
-    else if (['error'].includes(t)) level = 'error'
-    else if (['action', 'remediation', 'block'].includes(t)) level = 'action'
-    else if (['connected', 'success', 'ok'].includes(t)) level = 'connected'
-    else if (parsed.is_anomaly === true) level = 'anomaly'
+    if (['anomaly', 'threat', 'intrusion'].includes(t))                    level = 'anomaly'
+    else if (['warning', 'alert', 'critical'].includes(t))                 level = 'warning'
+    else if (['error', 'agent_error', 'normal_traffic_error'].includes(t)) level = 'error'
+    else if (['action', 'remediation', 'block'].includes(t))               level = 'action'
+    else if (['agent_invocation'].includes(t))                             level = 'action'
+    else if (['agent_response'].includes(t))                               level = 'info'
+    else if (['normal_traffic_response'].includes(t))                      level = 'connected'
+    else if (['connected', 'success', 'ok'].includes(t))                   level = 'connected'
+    else if (parsed.is_anomaly === true)                                   level = 'anomaly'
   }
 
   // Build human-readable text
@@ -68,28 +104,70 @@ export function formatLogMessage(rawMessage: string | object | any): FormattedLo
   if (typeof parsed === 'string') {
     text = parsed
   } else {
-    // Determine the shape based on level / fields
-    if (level === 'anomaly') {
-      const src = parsed.source_ip ?? '?'
-      const dst = parsed.dest_ip ?? '?'
+    const evt = (parsed.event ?? parsed.type ?? '').toLowerCase()
+
+    // ── Agent broadcast events ───────────────────────────────────────────────
+    if (evt === 'agent_invocation') {
+      const id  = parsed.incident_id !== undefined ? `#${parsed.incident_id}` : ''
+      const src = parsed.source_ip   ?? '?'
+      const dst = parsed.dest_ip     ?? '?'
+      const type   = parsed.attack_type ?? 'Unknown'
+      const action = parsed.dqn_action  ?? '?'
+      text = `🤖 Agent invoked${id ? ` for Incident ${id}` : ''} | ${src} → ${dst} | type=${type} | dqn=${action}`
+
+    } else if (evt === 'agent_response') {
+      const id    = parsed.incident_id  !== undefined ? `#${parsed.incident_id}` : ''
+      const agent = parsed.handling_agent ?? 'Agent'
+      const resp  = parsed.final_response ?? ''
+      const header = `✅ ${agent}${id ? ` [Incident ${id}]` : ''}`
+      // Strip markdown from the LLM response so the terminal shows clean text
+      const cleanResp = resp ? stripMarkdown(resp) : ''
+      text = cleanResp ? `${header}\n${cleanResp}` : header
+
+    } else if (evt === 'agent_error') {
+      const id  = parsed.incident_id !== undefined ? `Incident #${parsed.incident_id}` : ''
+      const err = parsed.error ?? 'Unknown error'
+      text = `❌ Agent pipeline failed${id ? ` — ${id}` : ''}: ${err}`
+
+    } else if (evt === 'normal_traffic_response') {
+      const id    = parsed.incident_id !== undefined ? `#${parsed.incident_id}` : ''
+      const src   = parsed.source_ip ?? '?'
+      const dst   = parsed.dest_ip   ?? '?'
+      const recon = typeof parsed.recon_error === 'number' ? parsed.recon_error.toFixed(6) : (parsed.recon_error ?? '?')
+      const resp  = parsed.final_response ?? ''
+      const header = `🟢 NormalTrafficBaselineAgent${id ? ` [Incident ${id}]` : ''} | ${src} → ${dst} | recon=${recon}`
+      const cleanResp = resp ? stripMarkdown(resp) : ''
+      text = cleanResp ? `${header}\n${cleanResp}` : header
+
+    } else if (evt === 'normal_traffic_error') {
+      const id  = parsed.incident_id !== undefined ? `Incident #${parsed.incident_id}` : ''
+      const err = parsed.error ?? 'Unknown error'
+      text = `❌ Normal traffic agent failed${id ? ` — ${id}` : ''}: ${err}`
+
+    // ── Standard anomaly event ────────────────────────────────────────────────
+    } else if (level === 'anomaly') {
+      const src   = parsed.source_ip ?? '?'
+      const dst   = parsed.dest_ip   ?? '?'
       const recon = parsed.recon_error !== undefined ? parsed.recon_error : (parsed.reconstruction_error ?? '?')
-      const type = parsed.attack_type ?? 'Unknown'
-      
+      const type  = parsed.attack_type ?? 'Unknown'
       let reconStr = String(recon)
       if (typeof recon === 'number') reconStr = recon.toFixed(4)
-      
-      text = `${src} → ${dst} | recon_error=${reconStr} | type=${type}`
+      text = `🚨 ${src} → ${dst} | recon_error=${reconStr} | type=${type}`
+
+    // ── Standard action event ─────────────────────────────────────────────────
     } else if (level === 'action') {
       const incident = parsed.incident_id !== undefined ? `Incident #${parsed.incident_id}` : ''
-      const action = parsed.action_taken ?? parsed.dqn_action ?? parsed.message ?? 'Unknown action'
+      const action   = parsed.action_taken ?? parsed.dqn_action ?? parsed.message ?? 'Unknown action'
       const severity = parsed.severity ? ` | severity=${parsed.severity.toUpperCase()}` : ''
       const parts = [incident, action].filter(Boolean)
-      text = `${parts.join(' | ')}${severity}`
+      text = `⚡ ${parts.join(' | ')}${severity}`
+
+    // ── Generic info / warning with message field ─────────────────────────────
     } else if (parsed.message) {
-      // Generic info with message
       text = parsed.message
+
+    // ── Last-resort raw JSON fallback ─────────────────────────────────────────
     } else {
-      // Generic info fallback
       text = JSON.stringify(parsed)
     }
   }
