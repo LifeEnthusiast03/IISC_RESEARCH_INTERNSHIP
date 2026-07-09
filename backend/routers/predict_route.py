@@ -29,7 +29,7 @@ import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
 
-from backend.agent.pipeline_runner import run_and_broadcast
+from backend.agent.pipeline_runner import run_and_broadcast, run_normal_traffic_agent
 from backend.schemas import IncidentContext
 
 # Load attack type label map once at startup
@@ -208,8 +208,23 @@ async def predict(
             
             # Fire-and-forget: run the agent pipeline and broadcast its result
             asyncio.create_task(run_and_broadcast(agent_context))
-            
-        # -- Return response ----------------------------------------------------
+
+        else:
+            # -- Normal traffic: invoke the standalone baseline agent -----------
+            # Build a lightweight IncidentContext for benign flows
+            normal_ctx = IncidentContext(
+                source_ip=payload.source_ip or "0.0.0.0",
+                dest_ip=payload.dest_ip or "0.0.0.0",
+                src_port=payload.src_port,
+                dst_port=payload.dst_port,
+                recon_error=anomaly_result.reconstruction_error,
+                is_anomaly=False,
+                attack_type=None,
+                dqn_action=None,
+                incident_id=incident.id,
+                raw_features=payload.features,
+            )
+            asyncio.create_task(run_normal_traffic_agent(normal_ctx))
         return PredictResponse(
             reconstruction_error=anomaly_result.reconstruction_error,
             is_anomaly=is_anomaly,
