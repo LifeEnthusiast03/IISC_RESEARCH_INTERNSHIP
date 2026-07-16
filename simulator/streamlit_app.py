@@ -14,24 +14,23 @@ FASTAPI_URL   = "http://localhost:8000/predict"
 
 # -- Attack metadata: icon + severity -----------------------------------------
 ATTACK_META = {
-    "Botnet_ARES":       {"icon": "\U0001f916", "severity": "CRITICAL", "color": "#ff2244"},
-    "DDoS_LOIT":         {"icon": "\U0001f30a", "severity": "CRITICAL", "color": "#ff2244"},
-    "DoS_GoldenEye":     {"icon": "\U0001f441\ufe0f",  "severity": "HIGH",     "color": "#ff8800"},
-    "DoS_Hulk":          {"icon": "\U0001f4aa", "severity": "HIGH",     "color": "#ff8800"},
-    "DoS_Slowhttptest":  {"icon": "\U0001f422", "severity": "MEDIUM",   "color": "#ffcc00"},
-    "DoS_Slowloris":     {"icon": "\U0001f577\ufe0f",  "severity": "MEDIUM",   "color": "#ffcc00"},
-    "FTP-Patator":       {"icon": "\U0001f511", "severity": "HIGH",     "color": "#ff8800"},
-    "Port_Scan":         {"icon": "\U0001f4e1", "severity": "MEDIUM",   "color": "#ffcc00"},
-    "SSH-Patator":       {"icon": "\U0001f510", "severity": "HIGH",     "color": "#ff8800"},
-    "Web_Brute_Force":   {"icon": "\U0001fa93", "severity": "HIGH",     "color": "#ff8800"},
-    "Web_XSS":           {"icon": "\U0001f489", "severity": "MEDIUM",   "color": "#ffcc00"},
-    "Benign":            {"icon": "\u2705", "severity": "SAFE",     "color": "#00ff88"},
+    "Botnet_ARES":       {"icon": "[BOT]",  "severity": "CRITICAL", "color": "#ff2244"},
+    "DDoS_LOIT":         {"icon": "[DDOS]", "severity": "CRITICAL", "color": "#ff2244"},
+    "DoS_GoldenEye":     {"icon": "[DOS]",  "severity": "HIGH",     "color": "#ff8800"},
+    "DoS_Hulk":          {"icon": "[HULK]", "severity": "HIGH",     "color": "#ff8800"},
+    "DoS_Slowhttptest":  {"icon": "[SLOW]", "severity": "MEDIUM",   "color": "#ffcc00"},
+    "DoS_Slowloris":     {"icon": "[LORIS]","severity": "MEDIUM",   "color": "#ffcc00"},
+    "FTP-Patator":       {"icon": "[FTP]",  "severity": "HIGH",     "color": "#ff8800"},
+    "Port_Scan":         {"icon": "[SCAN]", "severity": "MEDIUM",   "color": "#ffcc00"},
+    "SSH-Patator":       {"icon": "[SSH]",  "severity": "HIGH",     "color": "#ff8800"},
+    "Web_Brute_Force":   {"icon": "[WEB]",  "severity": "HIGH",     "color": "#ff8800"},
+    "Web_XSS":           {"icon": "[XSS]",  "severity": "MEDIUM",   "color": "#ffcc00"},
+    "Benign":            {"icon": "[OK]",   "severity": "SAFE",     "color": "#00ff88"},
 }
 
 # -- Page Config --------------------------------------------------------------
 st.set_page_config(
     page_title="ThreatSentinel - Attack Injector",
-    page_icon="\u2620\ufe0f",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -238,7 +237,7 @@ def load_data():
 
 
 # -- Hero header --------------------------------------------------------------
-st.markdown('<div class="hero-title">\u2620 THREATSENTINEL</div>', unsafe_allow_html=True)
+st.markdown('<div class="hero-title">THREATSENTINEL</div>', unsafe_allow_html=True)
 st.markdown('<div class="hero-sub">[ ATTACK INJECTION CONSOLE ]  //  CICIDS2017 REPLAY ENGINE</div>', unsafe_allow_html=True)
 st.markdown('<hr class="divider">', unsafe_allow_html=True)
 
@@ -247,7 +246,7 @@ try:
     with st.spinner("[ LOADING THREAT DATABASE ... ]"):
         feature_names, X_all, y_all, available_classes, class_counts = load_data()
 except Exception as e:
-    st.markdown(f'<div class="status-err">\u26a0 FATAL: Failed to load dataset - {e}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="status-err">[ERROR] FATAL: Failed to load dataset - {e}</div>', unsafe_allow_html=True)
     st.stop()
 
 total_flows = len(X_all)
@@ -284,7 +283,7 @@ st.markdown(f"""
 left_col, right_col = st.columns([1, 2], gap="medium")
 
 with left_col:
-    st.markdown('<div class="panel-title">\u25b6 TARGET SELECTION</div>', unsafe_allow_html=True)
+    st.markdown('<div class="panel-title">&gt; TARGET SELECTION</div>', unsafe_allow_html=True)
 
     selected_class = st.selectbox(
         "ATTACK VECTOR",
@@ -309,7 +308,7 @@ with left_col:
         </div>
         <div style="text-align:center; margin-top:0.4rem;">
             <span class="{sev_cls}" style="font-size:0.7rem; letter-spacing:2px;">
-                \u25c8 SEVERITY: {meta['severity']}
+                [*] SEVERITY: {meta['severity']}
             </span>
         </div>
         <div style="text-align:center; margin-top:0.3rem; opacity:0.6; font-size:0.7rem;">
@@ -319,11 +318,11 @@ with left_col:
     """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    fire_btn = st.button("\u26a1  INJECT PAYLOAD", use_container_width=True)
+    fire_btn = st.button("INJECT PAYLOAD", use_container_width=True)
 
 
 with right_col:
-    st.markdown('<div class="panel-title">\u25b6 TRANSMISSION LOG</div>', unsafe_allow_html=True)
+    st.markdown('<div class="panel-title">&gt; TRANSMISSION LOG</div>', unsafe_allow_html=True)
 
     # Session log
     if "log_lines" not in st.session_state:
@@ -396,6 +395,6 @@ with right_col:
     # Payload expander
     if "last_payload" in st.session_state:
         st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown('<div class="panel-title">\u25b6 RAW PAYLOAD (JSON)</div>', unsafe_allow_html=True)
+        st.markdown('<div class="panel-title">&gt; RAW PAYLOAD (JSON)</div>', unsafe_allow_html=True)
         with st.expander("[ EXPAND TO VIEW FULL 115-FEATURE VECTOR ]", expanded=False):
             st.json(st.session_state["last_payload"])
