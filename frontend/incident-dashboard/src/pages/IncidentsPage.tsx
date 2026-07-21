@@ -145,7 +145,7 @@ export default function IncidentsPage() {
   }, [data, attackFilter, ipSearch])
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+    <div className="w-full px-6 py-8 space-y-6">
 
       {/* ── Header ──────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -246,15 +246,14 @@ export default function IncidentsPage() {
           <table className="w-full">
             <thead>
               <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--col-border)' }}>
-                {['TIME', 'SOURCE → DEST', 'ATTACK TYPE', 'RECON ERROR', 'DQN ACTION', 'STATUS', 'SEV'].map(col => (
-                  <th
-                    key={col}
-                    className="px-4 py-3 text-left mono text-xs font-semibold"
-                    style={{ color: 'var(--col-text-hi)' }}
-                  >
-                    {col}
-                  </th>
-                ))}
+                {/* Fixed-width narrow columns; SOURCE→DEST and ATTACK TYPE flex to fill */}
+                <th className="px-4 py-3 text-left mono text-xs font-semibold w-24 shrink-0" style={{ color: 'var(--col-text-hi)' }}>TIME</th>
+                <th className="px-4 py-3 text-left mono text-xs font-semibold min-w-[160px]"  style={{ color: 'var(--col-text-hi)' }}>SOURCE → DEST</th>
+                <th className="px-4 py-3 text-left mono text-xs font-semibold min-w-[140px]"  style={{ color: 'var(--col-text-hi)' }}>ATTACK TYPE</th>
+                <th className="px-4 py-3 text-left mono text-xs font-semibold w-28 shrink-0" style={{ color: 'var(--col-text-hi)' }}>RECON ERROR</th>
+                <th className="px-4 py-3 text-left mono text-xs font-semibold w-36 shrink-0" style={{ color: 'var(--col-text-hi)' }}>DQN ACTION</th>
+                <th className="px-4 py-3 text-left mono text-xs font-semibold w-24 shrink-0" style={{ color: 'var(--col-text-hi)' }}>STATUS</th>
+                <th className="px-4 py-3 text-left mono text-xs font-semibold w-24 shrink-0" style={{ color: 'var(--col-text-hi)' }}>SEV</th>
               </tr>
             </thead>
             <tbody>
@@ -304,7 +303,7 @@ export default function IncidentsPage() {
                       </td>
 
                       {/* Source → Dest */}
-                      <td className="px-4 py-3 mono text-xs max-w-[140px]">
+                      <td className="px-4 py-3 mono text-xs w-[160px] max-w-[200px]">
                         <div className="truncate" style={{ color: 'var(--col-text-hi)' }} title={incident.source_ip}>
                           {incident.source_ip}
                         </div>

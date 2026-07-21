@@ -2,19 +2,33 @@
  * src/components/Navbar.tsx
  * ─────────────────────────
  * Persistent navigation bar rendered by RootLayout.
- * - Logo badge "TS" + "ThreatSentinel" + version tag
- * - 4 NavLinks with active-state cyan highlight
- * - Right side: WebSocket connection status pill (from WsContext)
+ *
+ * Features:
+ *  - Logo badge "TS" + "ThreatSentinel" + version tag
+ *  - 4 NavLinks with active-state cyan highlight
+ *  - Right side: WebSocket connection status pill (from WsContext)
+ *  - Scroll-direction hide/show: slides up on scroll-down, reveals on scroll-up
+ *  - Narrow floating pill shape: ~82% viewport width on large screens
+ *  - Pill/capsule corners: rounded-full
+ *
+ * Scroll behavior implemented via useNavScroll (rAF-throttled, ref-based — no
+ * per-tick re-renders). CSS transform + opacity transition handles the animation.
+ *
+ * Width breakpoints:
+ *   mobile  : w-[calc(100%-1rem)]   (8px each side — don't cramp nav items)
+ *   sm      : w-[calc(100%-2rem)]   (16px each side)
+ *   lg      : w-[82%] max-w-6xl    (narrows to a floating pill on large screens)
+ *
+ * Scroll thresholds (defined in useNavScroll):
+ *   SCROLL_THRESHOLD : 8 px delta to commit to a direction change
+ *   TOP_ZONE         : 80 px — always visible while scrollY < 80
  */
 
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { Terminal, List, BarChart3, Home, Menu, X } from 'lucide-react'
 import clsx from 'clsx'
-import { useWsContext } from '../contexts/WsContext'
-import { StatusPill } from './StatusPill'
-import { useScrollPosition } from '../hooks/useScrollPosition'
-import type { WsStatus } from '../hooks/useWebSocket'
+import { useNavScroll } from '../hooks/useNavScroll'
 
 const NAV_LINKS = [
   { to: '/',          label: 'Home',      icon: Home     },
@@ -23,65 +37,49 @@ const NAV_LINKS = [
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
 ] as const
 
-function wsVariant(status: WsStatus) {
-  if (status === 'connected')   return 'green'  as const
-  if (status === 'connecting')  return 'amber'  as const
-  if (status === 'error')       return 'red'    as const
-  return 'slate' as const
-}
-
-function wsLabel(status: WsStatus) {
-  if (status === 'connected')   return 'Connected'
-  if (status === 'connecting')  return 'Connecting…'
-  if (status === 'error')       return 'Conn Error'
-  return 'Disconnected'
-}
-
 export function Navbar() {
-  const { status } = useWsContext()
-  const scrollY = useScrollPosition()
-  const isScrolled = scrollY > 40
+  const { isScrolled, isHidden } = useNavScroll()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   return (
     <>
       <header
         className={clsx(
-          "fixed top-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-7xl z-30",
-          "flex items-center justify-between px-4 py-2.5 md:px-5 md:py-3 transition-all duration-300",
-          isScrolled 
-            ? "rounded-2xl border shadow-[0_8px_30px_rgb(0,0,0,0.4)]" 
-            : "rounded-xl border shadow-[0_4px_20px_rgb(0,0,0,0.2)]"
+          // ── Positioning: fixed, horizontally centred ──────────────────
+          "fixed top-4 left-1/2 z-30",
+
+          // Width: content-fit pill — wraps tightly around nav links
+          "w-fit",
+
+          // ── Shape: full pill/capsule corners ─────────────────────────
+          "rounded-full",
+
+          // ── Layout ───────────────────────────────────────────────────
+          "flex items-center justify-center px-3 py-1.5",
+
         )}
         style={{
-          borderColor: isScrolled ? 'rgba(56,189,248,0.2)' : 'var(--col-border)',
-          background: isScrolled ? 'rgba(8,11,20,0.95)' : 'rgba(8,11,20,0.7)',
-          backdropFilter: 'blur(16px)',
+          // ── Frosted glass background ──────────────────────────────────
+          backdropFilter: 'blur(18px)',
+          background: isScrolled ? 'rgba(8,11,20,0.95)' : 'rgba(8,11,20,0.72)',
+          borderColor: isScrolled ? 'rgba(56,189,248,0.22)' : 'var(--col-border)',
+          border: '1px solid',
+          boxShadow: isScrolled
+            ? '0 8px 32px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(56,189,248,0.06)'
+            : '0 4px 20px rgba(0,0,0,0.22)',
+
+          // ── Scroll-direction hide/show ─────────────────────────────────
+          // translateY(-120%) clears the top: 1rem offset plus the bar's own height
+          // opacity fade makes the exit/entrance softer
+          transform: isHidden ? 'translateX(-50%) translateY(-120%)' : 'translateX(-50%) translateY(0)',
+          opacity: isHidden ? 0 : 1,
+          // Separate transitions: transform is quick, opacity a touch slower for softness
+          transition: 'transform 280ms cubic-bezier(0.4,0,0.2,1), opacity 260ms ease-out, background 300ms ease, box-shadow 300ms ease, border-color 300ms ease',
+          // Pointer-events off while hidden so invisible bar can't intercept clicks
+          pointerEvents: isHidden ? 'none' : 'auto',
         }}
       >
-        {/* ── Logo ──────────────────────────────────────────────────────── */}
-        <NavLink to="/" className="flex items-center gap-3 group" aria-label="ThreatSentinel home">
-          <div
-            className="flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold transition-shadow duration-200 group-hover:shadow-[0_0_12px_rgba(56,189,248,0.35)]"
-            style={{
-              background: 'var(--col-cyan-dim)',
-              border: '1px solid rgba(56,189,248,0.3)',
-              color: 'var(--col-cyan)',
-            }}
-          >
-            TS
-          </div>
-          <div>
-            <p className="text-sm font-semibold leading-none" style={{ color: 'var(--col-text-hi)' }}>
-              ThreatSentinel
-            </p>
-            <p className="text-xs mt-0.5 mono" style={{ color: 'var(--col-text)' }}>
-              IDS Dashboard v0.1
-            </p>
-          </div>
-        </NavLink>
-
-        {/* ── Nav links ─────────────────────────────────────────────────── */}
+        {/* ── Nav links ──────────────────────────────────────────────── */}
         <nav className="hidden md:flex items-center gap-1" aria-label="Primary navigation">
           {NAV_LINKS.map(({ to, label, icon: Icon }) => (
             <NavLink
@@ -104,38 +102,29 @@ export function Navbar() {
           ))}
         </nav>
 
-        {/* ── WS status pill & Mobile Menu ──────────────────────────────── */}
-        <div className="flex items-center gap-3">
-          <StatusPill
-            variant={wsVariant(status)}
-            pulse={status === 'connected' || status === 'connecting'}
-          >
-            {wsLabel(status)}
-          </StatusPill>
-          
-          <button
-            className="md:hidden flex items-center justify-center w-8 h-8 rounded-lg border transition-colors"
-            style={{
-              borderColor: 'var(--col-border)',
-              color: 'var(--col-text-hi)',
-              background: 'rgba(255,255,255,0.03)',
-            }}
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            aria-label="Toggle mobile menu"
-          >
-            {isMobileMenuOpen ? <X size={16} /> : <Menu size={16} />}
-          </button>
-        </div>
+        {/* ── Mobile Menu toggle (mobile only) ──────────────────────── */}
+        <button
+          className="md:hidden flex items-center justify-center w-8 h-8 rounded-full border transition-colors"
+          style={{
+            borderColor: 'var(--col-border)',
+            color: 'var(--col-text-hi)',
+            background: 'rgba(255,255,255,0.03)',
+          }}
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          aria-label="Toggle mobile menu"
+        >
+          {isMobileMenuOpen ? <X size={16} /> : <Menu size={16} />}
+        </button>
       </header>
 
-      {/* ── Mobile Menu Dropdown ──────────────────────────────────────── */}
+      {/* ── Mobile Menu Dropdown ───────────────────────────────────────── */}
       {isMobileMenuOpen && (
         <div
           className="fixed top-20 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] z-20 rounded-2xl border p-2 shadow-xl md:hidden"
           style={{
             borderColor: 'var(--col-border)',
             background: 'rgba(8,11,20,0.95)',
-            backdropFilter: 'blur(16px)',
+            backdropFilter: 'blur(18px)',
           }}
         >
           <nav className="flex flex-col gap-1">
