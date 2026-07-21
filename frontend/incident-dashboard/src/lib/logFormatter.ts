@@ -38,11 +38,15 @@ export type LogLevel = 'info' | 'anomaly' | 'action' | 'warning' | 'error' | 'co
 export interface FormattedLog {
   id: string
   level: LogLevel
-  timestamp: string    // raw ISO string
-  timeLabel: string    // HH:mm:ss.SSS formatted
-  text: string         // single-line human readable summary
+  timestamp: string      // raw ISO string
+  timeLabel: string      // HH:mm:ss.SSS formatted
+  text: string           // single-line human readable summary
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  raw: any             // the original parsed JSON object (or string if parse failed)
+  raw: any               // the original parsed JSON object (or string if parse failed)
+  // ── Optional extended fields (backward-compatible) ──────────────────────────
+  incidentId?: string | number  // incident_id when present in payload
+  isGrouped?:  boolean          // true for agent sub-event logs (indent + connector)
+  confidence?: number           // attack-classifier confidence score (0–1)
 }
 
 function generateId(): string {
@@ -172,6 +176,32 @@ export function formatLogMessage(rawMessage: string | object | any): FormattedLo
     }
   }
 
+  // ── Populate optional extended fields ──────────────────────────────────────
+  let incidentId: string | number | undefined
+  let isGrouped: boolean | undefined
+  let confidence: number | undefined
+
+  if (parsed && typeof parsed === 'object') {
+    // incidentId — present on almost every pipeline event
+    if (parsed.incident_id !== undefined) {
+      incidentId = parsed.incident_id
+    }
+
+    // isGrouped — mark agent sub-events so TerminalLine can indent them
+    const evtForGroup = (parsed.event ?? parsed.type ?? '').toLowerCase()
+    if (
+      ['agent_invocation', 'agent_response', 'agent_error',
+       'normal_traffic_response', 'normal_traffic_error'].includes(evtForGroup)
+    ) {
+      isGrouped = true
+    }
+
+    // confidence — attack classifier payloads carry this field
+    if (typeof parsed.confidence === 'number') {
+      confidence = parsed.confidence
+    }
+  }
+
   return {
     id,
     level,
@@ -179,5 +209,8 @@ export function formatLogMessage(rawMessage: string | object | any): FormattedLo
     timeLabel,
     text,
     raw: parsed,
+    incidentId,
+    isGrouped,
+    confidence,
   }
 }
